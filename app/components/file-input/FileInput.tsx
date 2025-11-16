@@ -1,19 +1,23 @@
 import {Paperclip} from "lucide-react";
 import React, {useRef} from "react";
-import {AttachedFile} from "@/app/components/chat-input/Chat.interface";
+import useFileInputHook from "@/hooks/FileInputHooks";
 
 export function FileInput() {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { addFiles } = useFileInputHook();
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
-        if (!files) return;
+        if (!files || files.length === 0) return;
+       
+        try {
+            await addFiles(files[0]);
+            if(fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
 
-        const newFiles: AttachedFile[] = Array.from(files).map(file => ({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            url: URL.createObjectURL(file),
-        }));
+        } catch (error) {
+            console.error("Error adding files:", error);
+        }
 
     };
     return (
@@ -21,7 +25,6 @@ export function FileInput() {
         <input
             ref={fileInputRef}
             type="file"
-            multiple
             className="hidden"
             onChange={handleFileSelect}
         />

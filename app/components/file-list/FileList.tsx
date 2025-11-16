@@ -1,10 +1,10 @@
 import {Paperclip, X} from "lucide-react";
-import React, { useState} from "react";
-import {useQuery} from "@tanstack/react-query";
+import React from "react";
 import useFileInputHook from "@/hooks/FileInputHooks";
 
 export default function FileList() {
     const attachedFiles = useFileInputHook().files
+    const removeHook = useFileInputHook().removeFiles;
     const formatFileSize = (bytes: number) => {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -25,7 +25,7 @@ export default function FileList() {
                                 <span className="text-gray-300 max-w-[200px] truncate">{file.name}</span>
                                 <span className="text-gray-500 text-xs">({formatFileSize(file.size)})</span>
                                 <button
-                                    onClick={() => removeFile(index)}
+                                    onClick={() => removeHook(file.id)}
                                     className="ml-1 text-gray-500 hover:text-gray-300"
                                 >
                                     <X className="h-4 w-4" />
