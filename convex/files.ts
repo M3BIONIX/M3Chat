@@ -16,12 +16,16 @@ export const uploadFiles = mutation({
         name: v.string(),
         type: v.string(),
         size: v.number(),
-        conversationId: v.id("conversations"), // Make optional
+        conversationId: v.optional(v.id(conversationsTable))
     },
     handler: async (ctx, args) => {
         if(args.size > MAX_SIZE) {
             throw new Error(`File ${args.name} exceeds 10MB limit.`);
         }
+        if(args.type != "application/pdf" && args.type != "application/txt") {
+            throw new Error("M3 Chat only supports PDF or TXT Files");
+        }
+
         const id = crypto.randomUUID();
 
         const fileId = await ctx.db.insert(attachedFilesTable, {
@@ -54,6 +58,18 @@ export const getConversationFiles = query({
                 url: await ctx.storage.getUrl(file.storageId),
             }))
         );
+    }
+})
+
+export const patchConversationIdToUploadedFiles = mutation({
+    args: {
+        fileId: v.id(attachedFilesTable),
+        convoId: v.id(conversationsTable)
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.fileId, {
+            conversationId: args.convoId
+        })
     }
 })
 

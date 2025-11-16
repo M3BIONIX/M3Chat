@@ -6,12 +6,12 @@ export default defineSchema({
         id: v.string(),
         name: v.string(),
         type: v.union(
-            v.literal("pdf"),
-            v.literal("txt")
+            v.literal("application/pdf"),
+            v.literal("application/txt")
         ),
         size: v.number(),
         storageId: v.id("_storage"),
-        conversationId: v.id("conversations"),
+        conversationId: v.optional(v.id("conversations")),
         uploadedAt: v.optional(v.number())
     }),
     conversations: defineTable({

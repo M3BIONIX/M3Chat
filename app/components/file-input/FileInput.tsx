@@ -1,19 +1,16 @@
 import {Paperclip} from "lucide-react";
 import React, {useRef} from "react";
 import useFileInputHook from "@/hooks/FileInputHooks";
-import useCurrentChatHook from "@/hooks/CurrentChatHooks";
-import {Id} from "@/convex/_generated/dataModel";
 
 export function FileInput() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { addFiles } = useFileInputHook();
-    const { currentChat } = useCurrentChatHook();
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
        
         try {
-            await addFiles(files[0], currentChat.data.id as Id<"conversations">);
+            await addFiles(files[0]);
             if(fileInputRef.current) {
                 fileInputRef.current.value = "";
             }

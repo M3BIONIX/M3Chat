@@ -1,12 +1,10 @@
 import {ConvexReactClient} from "convex/react";
-import {Id} from "@/convex/_generated/dataModel";
 import {api} from "@/convex/_generated/api";
 import {AttachedFile} from "@/lib/schemas/FileSchema";
 
 export async function uploadFiles(
     file: File,
-    convexClient: ConvexReactClient,
-    conversationId: Id<"conversations">
+    convexClient: ConvexReactClient
 ): Promise<AttachedFile> {
 
     try {
@@ -27,11 +25,14 @@ export async function uploadFiles(
 
         const fileRecord = await convexClient.mutation(api.files.uploadFiles, {
             storageId,
-            conversationId,
             name: file.name,
             size: file.size,
             type: file.type
         });
+
+        if (!fileRecord) {
+            throw new Error("Failed to retrieve uploaded file record from database");
+        }
 
         return {
             id: fileRecord.id,
@@ -39,7 +40,6 @@ export async function uploadFiles(
             type: fileRecord.type,
             size: fileRecord.size,
             storageId: fileRecord.storageId,
-            url: fileRecord.url || "",
             uploadedAt: fileRecord.uploadedAt
         };
     }
