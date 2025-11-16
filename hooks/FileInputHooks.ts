@@ -2,6 +2,7 @@ import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {AttachedFile, AttachedFileArray} from "@/lib/schemas/FileSchema";
 import {useConvex} from "convex/react";
 import {uploadFiles} from "@/lib/fileUploadUtils";
+import {Id} from "@/convex/_generated/dataModel";
 
 export const fileInputQueryKey = ['fileInputData'];
 
@@ -18,7 +19,7 @@ export default function useFileInputHook() {
 
     })
 
-    const addFiles = async (newFile: File, conversationId: string) => {
+    const addFiles = async (newFile: File, conversationId: Id<"conversations">) => {
         try {
             const uploadedFile = await uploadFiles(newFile, convex, conversationId);
             

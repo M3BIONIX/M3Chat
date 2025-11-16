@@ -1,5 +1,5 @@
 import {mutation} from "@/convex/_generated/server";
-import { v } from "convex/values";
+import {v} from "convex/values";
 
 const conversationTableName = "conversations";
 
@@ -10,12 +10,12 @@ export const createConversation = mutation({
     handler: async (ctx, args) => {
         const id = crypto.randomUUID();
         const epochNumber = Number(new Date())
-        await ctx.db.insert(conversationTableName, {
+        return await ctx.db.insert(conversationTableName, {
             id,
             title: "",
             userId: args.userId,
             createdAt: epochNumber
-        })
+        });
     }
 })
 

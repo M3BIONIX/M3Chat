@@ -1,6 +1,7 @@
 import {ConvexReactClient} from "convex/react";
 import {Id} from "@/convex/_generated/dataModel";
 import {api} from "@/convex/_generated/api";
+import {AttachedFile} from "@/lib/schemas/FileSchema";
 
 export async function uploadFiles(
     file: File,
