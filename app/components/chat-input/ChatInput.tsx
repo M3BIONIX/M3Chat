@@ -2,14 +2,11 @@ import { Send } from "lucide-react";
 import React, { useState} from "react";
 import FileList from "@/app/components/file-list/FileList";
 import {FileInput} from "@/app/components/file-input/FileInput";
-import {useQuery} from "@tanstack/react-query";
+import useFileInputHook from "@/hooks/FileInputHooks";
 
 export default function ChatInput() {
     const [input, setInput] = useState('');
-    const { isPending, isError, data, error } = useQuery({
-        queryKey: ['attachedFiles'],
-        queryFn: fetchAttachedFiles,
-    })
+    const attachedFiles = useFileInputHook().files
 
     const handleSend = () => {
         // if (!input.trim() && attachedFiles.length === 0) return;

@@ -1,37 +1,51 @@
 import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {AttachedFile} from "@/app/components/chat-input/Chat.interface";
+import {AttachedFile, AttachedFileArray} from "@/lib/schemas/FileSchema";
+import {useConvex} from "convex/react";
+import {uploadFiles} from "@/lib/fileUploadUtils";
 
 export const fileInputQueryKey = ['fileInputData'];
 
 export default function useFileInputHook() {
     const queryClient = useQueryClient();
+    const convex = useConvex();
 
-    const { data: files = [] } = useQuery({
+    const { data: files = [] as AttachedFile[] } = useQuery({
         queryKey: fileInputQueryKey,
-        queryFn: () => [],
-        initialData: [],
+        queryFn: () => [] as AttachedFile[],
+        initialData: [] as AttachedFile[],
         staleTime: Infinity,
         gcTime: Infinity
 
     })
 
-    const addFiles = (newFiles: AttachedFile[]) => {
-        queryClient.setQueryData(fileInputQueryKey, (oldFiles: AttachedFile[] = [])=> {
-            return [...oldFiles, newFiles];
-        });
-    }
+    const addFiles = async (newFile: File, conversationId: string) => {
+        try {
+            const uploadedFile = await uploadFiles(newFile, convex, conversationId);
+            
+            const parsed = AttachedFileArray.safeParse([uploadedFile]);
+            if (!parsed.success) {
+                console.error("File validation failed:", parsed.error);
+                throw new Error("Invalid file data");
+            }
+            
+            queryClient.setQueryData<AttachedFile[]>(fileInputQueryKey, (old = []) => {
+                return [...old, uploadedFile];
+            });
+        }
+        catch {
+            throw new Error("Could not parse file input");
+        }
+    };
 
-    const removeFiles = (fileToRemove: AttachedFile) => {
-        queryClient.setQueryData(fileInputQueryKey, (files: AttachedFile[]) =>{
-            return files.filter((file: AttachedFile) => {
-                return file.id === fileToRemove.id;
-            })
+    const removeFiles = (fileId: string) => {
+        queryClient.setQueryData<AttachedFile[]>(fileInputQueryKey, (old = []) => {
+            return old.filter((file) => file.id !== fileId);
         });
-    }
+    };
 
     const clearFiles = () => {
-        queryClient.setQueryData(fileInputQueryKey, [])
-    }
+        queryClient.setQueryData<AttachedFile[]>(fileInputQueryKey, []);
+    };
 
     return {
         files,
