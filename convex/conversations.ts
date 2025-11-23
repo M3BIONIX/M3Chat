@@ -31,3 +31,12 @@ export const updateConversationTitle = mutation({
     }
 
 })
+
+export const getConversation = mutation({
+    args: {
+        convoId: v.id(conversationTableName)
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db.get(args.convoId)
+    }
+})

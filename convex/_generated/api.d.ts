@@ -10,6 +10,7 @@
 
 import type * as conversations from "../conversations.js";
 import type * as files from "../files.js";
+import type * as messages from "../messages.js";
 
 import type {
   ApiFromModules,
@@ -20,6 +21,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   conversations: typeof conversations;
   files: typeof files;
+  messages: typeof messages;
 }>;
 
 /**

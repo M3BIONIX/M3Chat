@@ -16,7 +16,7 @@ export default function ChatInput() {
     return (
         <>
         <FileList />
-        <div className="bg-[#1a1a1a]/80 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 space-y-3 hover:border-gray-600 transition-colors">
+        <div className="bg-[#1a1a1a]/80 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 hover:border-gray-600 transition-colors">
             <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -26,8 +26,8 @@ export default function ChatInput() {
                         handleSend();
                     }
                 }}
-                placeholder="Ask me anything......."
-                className="w-full bg-transparent text-gray-300 placeholder:text-gray-600 outline-none resize-none min-h-[60px] max-h-[200px]"
+                placeholder="Ask me anything ......."
+                className="w-full bg-transparent text-gray-300 placeholder:text-gray-600 outline-none resize-none max-h-[200px]"
                 rows={2}
             />
 
@@ -36,7 +36,7 @@ export default function ChatInput() {
                 <button
                     onClick={handleSend}
                     disabled={!input.trim() && attachedFiles.length === 0}
-                    className="h-10 w-10 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl transition-all"
+                    className="h-10 w-10 flex justify-center items-center bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl transition-all"
                 >
                     <Send className="h-5 w-5" />
                 </button>

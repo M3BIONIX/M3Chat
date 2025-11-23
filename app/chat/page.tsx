@@ -26,22 +26,12 @@ export default function NewChat() {
     };
 
     return (
-        <div className="flex-1 flex h-screen flex-col items-center justify-between relative overflow-hidden py-12">
-            {/* Background with glowing orb effect */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="relative">
-                    {/* Glowing orb */}
-                    <div className="w-96 h-96 rounded-full bg-gradient-to-br from-cyan-500/10 to-teal-500/10 blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
-                    <div className="w-64 h-64 rounded-full border-2 border-cyan-500/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-                    <div className="w-80 h-80 rounded-full border border-cyan-500/10 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
-                </div>
-            </div>
-
+        <div className="flex-1 flex h-full flex-col items-center justify-between relative overflow-hidden py-12">
             {/* Content */}
-            <div className="relative z-10 w-full max-w-4xl px-8 flex-1 flex flex-col justify-center space-y-16">
+            <div   className="relative z-10 w-full max-w-4xl px-8 flex-1 flex flex-col justify-center space-y-16">
                 {/* Welcome Text */}
                 <div className="text-center space-y-4">
-                    <h1 className="text-5xl text-white">Hey! Raf</h1>
+                    <h1 className="text-5xl font-semibold text-white">Hey! Raf</h1>
                     <p className="text-xl text-gray-400">What can I help with?</p>
                 </div>
 

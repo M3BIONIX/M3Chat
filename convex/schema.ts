@@ -30,5 +30,12 @@ export default defineSchema({
         message: v.string(),
         createdAt: v.number(),
         model: v.optional(v.string())
-    })
+    }).index("by_conversation", ["conversationId"]),
+    users: defineTable({
+        workOsId: v.string(),
+        name: v.string(),
+        email: v.string(),
+        avatarUrl: v.optional(v.string()),
+        createdAt: v.number()
+    }).index("by_workos_id", ["workOsId"]),
 });

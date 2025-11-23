@@ -23,8 +23,7 @@ export default function useCurrentChatHook() {
     const createConversationMutation = useMutation({
         mutationFn: async (userId: Id<"users">) => {
             return await convex.mutation(api.conversations.createConversation, {
-                userId,
-                title: ""
+                userId
             })
         },
         onSuccess: (conversationId: string) => {
@@ -37,9 +36,9 @@ export default function useCurrentChatHook() {
 
     const loadConversationMutation = useMutation({
         mutationFn: async (conversationId: Id<"conversations">) => {
-            const conversation = await convex.query(
+            const conversation = await convex.mutation(
                 api.conversations.getConversation,
-                { conversationId }
+                { convoId: conversationId }
             );
             return conversation;
         },
