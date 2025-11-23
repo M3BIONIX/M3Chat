@@ -1,14 +1,11 @@
-'use client';
+import {withAuth} from "@workos-inc/authkit-nextjs";
+import {router} from "next/client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-
-export default function Home() {
-    const router = useRouter();
-
-    useEffect(() => {
-        router.push('/chat');
-    }, [router]);
-
-    return null;
+export default async function Home() {
+    const { user } = await withAuth({
+        ensureSignedIn: true,
+    });
+    if (!user) {
+        await router.push("/auth");
+    }
 }
