@@ -1,100 +1,169 @@
-import { WorkOS } from "@workos-inc/node";
-import { NextRequest, NextResponse } from "next/server";
+import {WorkOS} from "@workos-inc/node";
+import {NextRequest, NextResponse} from "next/server";
+import {LoginRequestSchema, LoginResponseSchema} from "@/lib/schemas/ApiSchema";
+import {UserSchema} from "@/lib/schemas/AuthSchema";
+import {validateRequest, createValidatedResponse, createErrorResponse} from "@/lib/utils/apiValidation";
+import {handleWorkOSError, requiresEmailVerification, extractPendingAuthToken, extractEmailFromError} from "@/lib/utils/errorHandling";
+import {getErrorMessage} from "@/lib/utils/errorHandling";
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY);
-const clientId = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID; // Use server-side env var
+const clientId = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID;
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
-        const { email, password, code, pendingAuthenticationToken } = body;
+        // Validate request body
+        const validation = await validateRequest(request, LoginRequestSchema);
+        if (!validation.success) {
+            return createErrorResponse(validation.error, validation.status);
+        }
+
+        const { email, password, code, pendingAuthenticationToken } = validation.data;
 
         if(!clientId) {
-            return NextResponse.json(
-                { error: 'Server configuration error: WorkOS Client ID is missing' },
-                { status: 500 }
+            return createErrorResponse(
+                'Server configuration error: WorkOS Client ID is missing',
+                500,
+                'CONFIG_ERROR'
             );
         }
 
         // If code and token are provided, verify email (NO email/password needed)
         if (code && pendingAuthenticationToken) {
-            const { user } = await workos.userManagement.authenticateWithEmailVerification({
+            try {
+                const { user, sealedSession } = await workos.userManagement.authenticateWithEmailVerification({
+                    clientId,
+                    pendingAuthenticationToken,
+                    code,
+                    session: {
+                        sealSession: true,
+                        cookiePassword: process.env.WORKOS_COOKIE_PASSWORD,
+                    }
+                });
+
+                if (!sealedSession) {
+                    return createErrorResponse('Failed to create session', 500);
+                }
+
+                // Validate and format user response
+                const userResponse: UserSchema = {
+                    externalId: user.externalId || '',
+                    email: user.email || '',
+                    firstName: user.firstName || '',
+                    lastName: user.lastName || '',
+                    profilePicture: user.profilePictureUrl || '',
+                    emailVerified: user.emailVerified || false,
+                };
+
+                const response = createValidatedResponse(userResponse);
+                response.cookies.set('wos-session', sealedSession, {
+                    path: '/',
+                    httpOnly: true,
+                    secure: process.env.ENVIRONMENT === 'PRODUCTION',
+                    sameSite: 'lax',
+                    maxAge: 24 * 60 * 60 * 1000
+                });
+
+                return response;
+            } catch (error) {
+                const appError = handleWorkOSError(error);
+                return createErrorResponse(
+                    getErrorMessage(appError),
+                    appError.statusCode,
+                    appError.code
+                );
+            }
+        }
+
+        // Validate email and password are provided for password authentication
+        if (!email || !password) {
+            return createErrorResponse(
+                'Email and password are required for login',
+                400,
+                'VALIDATION_ERROR'
+            );
+        }
+
+        // Try password authentication
+        try {
+            const { user, sealedSession } = await workos.userManagement.authenticateWithPassword({
                 clientId,
-                pendingAuthenticationToken,
-                code,
+                email,
+                password,
+                session: {
+                    sealSession: true,
+                    cookiePassword: process.env.WORKOS_COOKIE_PASSWORD,
+                }
             });
 
-            return NextResponse.json({
+            if (!sealedSession) {
+                return createErrorResponse('Failed to create session', 500);
+            }
+
+            // Validate and format user response
+            const userResponse: UserSchema = {
                 externalId: user.externalId || '',
                 email: user.email || '',
                 firstName: user.firstName || '',
                 lastName: user.lastName || '',
                 profilePicture: user.profilePictureUrl || '',
                 emailVerified: user.emailVerified || false,
+            };
+
+            const response = createValidatedResponse(userResponse);
+            response.cookies.set('wos-session', sealedSession, {
+                path: '/',
+                httpOnly: true,
+                secure: process.env.ENVIRONMENT === 'PRODUCTION',
+                sameSite: 'lax',
+                maxAge: 24 * 60 * 60 * 1000
             });
-        }
 
-        // Try password authentication
-        const result = await workos.userManagement.authenticateWithPassword({
-            clientId,
-            email,
-            password,
-        });
+            return response;
+        } catch (error) {
+            // Check if error requires email verification
+            if (requiresEmailVerification(error)) {
+                const token = extractPendingAuthToken(error);
+                const emailFromError = extractEmailFromError(error);
 
-        return NextResponse.json({
-            externalId: result.user.externalId || '',
-            email: result.user.email || '',
-            firstName: result.user.firstName || '',
-            lastName: result.user.lastName || '',
-            profilePicture: result.user.profilePictureUrl || '',
-            emailVerified: result.user.emailVerified || false,
-        });
-    } catch (error: any) {
-        console.error('Login error:', error);
-        
-        // Check if error requires email verification
-        if (error.code === 'email_verification_required' || 
-            (error.status === 403 && error.message?.includes('Email ownership must be verified'))) {
-            
-            // Extract token from error - check multiple possible locations
-            const pendingAuthenticationToken = error.pending_authentication_token || 
-                                               error.pendingAuthenticationToken ||
-                                               error.rawData?.pending_authentication_token ||
-                                               (error.rawData && typeof error.rawData === 'object' && error.rawData.pending_authentication_token);
-            
-            const email = error.email || error.rawData?.email;
-            
-            if (pendingAuthenticationToken) {
-                return NextResponse.json(
-                    { 
-                        requiresVerification: true,
-                        pendingAuthenticationToken,
-                        email,
-                        message: 'Please check your email for a verification code'
-                    },
-                    { status: 200 } // Return 200 but with flag
-                );
+                if (token) {
+                    return NextResponse.json(
+                        {
+                            requiresVerification: true,
+                            pendingAuthenticationToken: token,
+                            email: emailFromError || email,
+                            message: 'Please check your email for a verification code'
+                        },
+                        { status: 200 }
+                    );
+                }
             }
-        }
 
-        // Extract user-friendly error message
-        let errorMessage = 'Failed to login. Please try again.';
-        
-        if (error.message) {
-            if (error.message.includes('Invalid credentials') || error.message.includes('incorrect')) {
+            // Handle other WorkOS errors
+            const appError = handleWorkOSError(error);
+            
+            // Extract user-friendly error message
+            let errorMessage = getErrorMessage(appError);
+            
+            if (errorMessage.includes('Invalid credentials') || errorMessage.includes('incorrect')) {
                 errorMessage = 'Invalid email or password. Please check your credentials.';
-            } else if (error.message.includes('not found') || error.message.includes('does not exist')) {
+            } else if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {
                 errorMessage = 'No account found with this email address.';
-            } else if (error.message.includes('rate limit') || error.message.includes('too many')) {
+            } else if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
                 errorMessage = 'Too many login attempts. Please try again later.';
-            } else {
-                errorMessage = error.message;
             }
-        }
 
-        return NextResponse.json(
-            { error: errorMessage },
-            { status: error.status || 500 }
+            return createErrorResponse(
+                errorMessage,
+                appError.statusCode,
+                appError.code
+            );
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        const errorMessage = getErrorMessage(error);
+        return createErrorResponse(
+            errorMessage || 'Failed to login. Please try again.',
+            500
         );
     }
 }

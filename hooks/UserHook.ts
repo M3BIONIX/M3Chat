@@ -1,5 +1,8 @@
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {CreateUserSchema, LoginSchema, UserSchema} from "@/lib/schemas/AuthSchema";
+import {VerificationRequiredError} from "@/lib/schemas/ErrorSchema";
+import {validateResponse} from "@/lib/utils/apiValidation";
+import * as z from 'zod';
 
 export const userHookKey = ['userHook'];
 
@@ -9,12 +12,44 @@ export function useUserHook() {
 
     const user = useQuery({
         queryKey: userHookKey,
-        queryFn: () => {
-            return {} as UserSchema;
+        queryFn: async () => {
+            // Fetch current user from API
+            const response = await fetch('/api/me', {
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = typeof errorData === 'object' && errorData !== null && 'error' in errorData
+                    ? String(errorData.error)
+                    : `Failed to fetch user: ${response.status}`;
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            
+            // Validate response with schema
+            const UserZodSchema = z.object({
+                externalId: z.string(),
+                email: z.string(),
+                firstName: z.string().nullable().optional(),
+                lastName: z.string().nullable().optional(),
+                emailVerified: z.boolean(),
+                profilePicture: z.optional(z.string().url().nullable()),
+            });
+            
+            const validation = validateResponse(data, UserZodSchema);
+            if (!validation.success) {
+                throw new Error(validation.error);
+            }
+
+            return validation.data as UserSchema;
         },
-        initialData: {} as UserSchema,
-        staleTime: 24 * 60 * 60 * 1000,
-        gcTime: 15 * 60 * 60 * 1000,
+        enabled: true,
+        refetchOnMount: true,
+        refetchOnWindowFocus: false,
+        staleTime: 0,
+        gcTime: 15 * 60 * 1000,
     })
 
     async function createUser(userData: CreateUserSchema) {
@@ -30,13 +65,31 @@ export function useUserHook() {
             const data = await response.json();
 
             if(!response.ok) {
-                throw new Error(data.error || 'Unable to create user');
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Unable to create user';
+                throw new Error(errorMessage);
             }
 
-            const createdUser = data as UserSchema;
+            // Validate response
+            const UserZodSchema = z.object({
+                externalId: z.string(),
+                email: z.string(),
+                firstName: z.string().nullable().optional(),
+                lastName: z.string().nullable().optional(),
+                emailVerified: z.boolean(),
+                profilePicture: z.optional(z.string().url().nullable()),
+            });
+            
+            const validation = validateResponse(data, UserZodSchema);
+            if (!validation.success) {
+                throw new Error(validation.error);
+            }
+
+            const createdUser = validation.data as UserSchema;
 
             queryClient.setQueryData<UserSchema>(userHookKey, () => {
-                return createdUser as UserSchema;
+                return createdUser;
             });
 
             await authenticateUserByEmail({
@@ -44,7 +97,7 @@ export function useUserHook() {
                 password: userData.password
             })
         } catch (error) {
-            // Re-throw with proper message
+            // Re-throw if it's already an Error
             if (error instanceof Error) {
                 throw error;
             }
@@ -59,13 +112,16 @@ export function useUserHook() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(code)
+                body: JSON.stringify({ code })
             })
 
             const data = await response.json();
 
             if(!response.ok) {
-                throw new Error(data.error || 'Unable to authenticate');
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Unable to authenticate';
+                throw new Error(errorMessage);
             }
 
             return data;
@@ -93,27 +149,49 @@ export function useUserHook() {
 
             const data = await response.json();
 
-            // If verification is required, throw error with token
-            if (data.requiresVerification && data.pendingAuthenticationToken) {
-                const error: any = new Error('VERIFICATION_REQUIRED');
-                error.pendingAuthenticationToken = data.pendingAuthenticationToken;
-                error.email = data.email;
-                throw error;
+            // If verification is required, throw VerificationRequiredError
+            if (typeof data === 'object' && data !== null && 
+                'requiresVerification' in data && 
+                data.requiresVerification === true &&
+                'pendingAuthenticationToken' in data &&
+                typeof data.pendingAuthenticationToken === 'string') {
+                throw new VerificationRequiredError(
+                    data.pendingAuthenticationToken,
+                    typeof data.email === 'string' ? data.email : undefined
+                );
             }
 
             if(!response.ok) {
-                throw new Error(data.error || 'Unable to login user');
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Unable to login user';
+                throw new Error(errorMessage);
             }
 
-            const user = data as UserSchema;
+            // Validate response
+            const UserZodSchema = z.object({
+                externalId: z.string(),
+                email: z.string(),
+                firstName: z.string().nullable().optional(),
+                lastName: z.string().nullable().optional(),
+                emailVerified: z.boolean(),
+                profilePicture: z.optional(z.string().url().nullable()),
+            });
+            
+            const validation = validateResponse(data, UserZodSchema);
+            if (!validation.success) {
+                throw new Error(validation.error);
+            }
 
-            queryClient.setQueryData<UserSchema>(userHookKey, (prev) => {
+            const user = validation.data as UserSchema;
+
+            queryClient.setQueryData<UserSchema>(userHookKey, (_prev: UserSchema | undefined) => {
                 return user;
             });
 
             return user;
         } catch (error) {
-            // Re-throw if it's already an Error with message
+            // Re-throw if it's already an Error (including VerificationRequiredError)
             if (error instanceof Error) {
                 throw error;
             }
@@ -139,12 +217,30 @@ export function useUserHook() {
             const data = await response.json();
 
             if(!response.ok) {
-                throw new Error(data.error || 'Invalid verification code');
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Invalid verification code';
+                throw new Error(errorMessage);
             }
 
-            const user = data as UserSchema;
+            // Validate response
+            const UserZodSchema = z.object({
+                externalId: z.string(),
+                email: z.string(),
+                firstName: z.string().nullable().optional(),
+                lastName: z.string().nullable().optional(),
+                emailVerified: z.boolean(),
+                profilePicture: z.optional(z.string().url().nullable()),
+            });
+            
+            const validation = validateResponse(data, UserZodSchema);
+            if (!validation.success) {
+                throw new Error(validation.error);
+            }
 
-            queryClient.setQueryData<UserSchema>(userHookKey, (prev) => {
+            const user = validation.data as UserSchema;
+
+            queryClient.setQueryData<UserSchema>(userHookKey, (_prev: UserSchema | undefined) => {
                 return user;
             });
 
@@ -170,7 +266,10 @@ export function useUserHook() {
             const data = await sendCode.json();
 
             if(!sendCode.ok) {
-                throw new Error(data.error || 'Unable to send code');
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Unable to send code';
+                throw new Error(errorMessage);
             }
 
             return data;
@@ -208,6 +307,6 @@ export function useUserHook() {
         authenticateWithGoogle,
         authenticateByCode,
         sendVerificationCode,
-        verifyEmailAndLogin, // Export this
+        verifyEmailAndLogin,
     }
 }

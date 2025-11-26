@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useRouter } from 'next/navigation';
 import { useUserHook } from "@/hooks/UserHook";
 import { showError } from "@/lib/utils/toast";
+import { isVerificationRequiredError } from "@/lib/utils/errorHandling";
+import { VerificationRequiredError } from "@/lib/schemas/ErrorSchema";
 
 export default function SignupForm() {
     const [email, setEmail] = useState('');
@@ -24,17 +26,19 @@ export default function SignupForm() {
             // After creation, try to login (which will trigger verification)
             try {
                 await authenticateUserByEmail({ email, password });
-                router.push('/chat');
-            } catch (error: any) {
-                if (error.message === 'VERIFICATION_REQUIRED') {
-                    router.push(`/auth/verify?token=${encodeURIComponent(error.pendingAuthenticationToken)}&email=${encodeURIComponent(error.email || email)}`);
+                router.push("/chat");
+            } catch (error: unknown) {
+                if (isVerificationRequiredError(error)) {
+                    const verificationError = error as VerificationRequiredError;
+                    router.push(`/auth/verify?token=${encodeURIComponent(verificationError.pendingAuthenticationToken)}&email=${encodeURIComponent(verificationError.email || email)}`);
                 } else {
                     throw error;
                 }
             }
-        } catch (error: any) {
-            if (error.message === 'VERIFICATION_REQUIRED') {
-                router.push(`/auth/verify?token=${encodeURIComponent(error.pendingAuthenticationToken)}&email=${encodeURIComponent(error.email || email)}`);
+        } catch (error: unknown) {
+            if (isVerificationRequiredError(error)) {
+                const verificationError = error as VerificationRequiredError;
+                router.push(`/auth/verify?token=${encodeURIComponent(verificationError.pendingAuthenticationToken)}&email=${encodeURIComponent(verificationError.email || email)}`);
             } else {
                 showError(error, 'Failed to create account');
             }

@@ -23,7 +23,7 @@ export default function ForgotPasswordForm() {
             setTimeout(() => {
                 router.push('/auth');
             }, 3000);
-        } catch (error) {
+        } catch (error: unknown) {
             showError(error, 'Failed to send reset link');
         } finally {
             setIsLoading(false);

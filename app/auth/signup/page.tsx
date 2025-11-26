@@ -12,7 +12,7 @@ export default function SignupPage() {
     const handleGoogleAuth = async () => {
         try {
             await authenticateWithGoogle();
-        } catch (error) {
+        } catch (error: unknown) {
             showError(error, 'Failed to authenticate with Google');
         }
     };
@@ -20,7 +20,7 @@ export default function SignupPage() {
     const handleGithubAuth = async () => {
         try {
             await authenticateWithGithub();
-        } catch (error) {
+        } catch (error: unknown) {
             showError(error, 'Failed to authenticate with GitHub');
         }
     };

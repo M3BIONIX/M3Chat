@@ -2,6 +2,7 @@
 
 import React from "react";
 import ChatInput from "@/app/components/chat-input/ChatInput";
+import {useUserHook} from "@/hooks/UserHook";
 
 
 const suggestions = [
@@ -21,7 +22,7 @@ const suggestions = [
 
 export default function NewChat() {
 
-
+    const user = useUserHook().user.data
     const handleSuggestionClick = (suggestion: string) => {
     };
 
@@ -31,7 +32,7 @@ export default function NewChat() {
             <div   className="relative z-10 w-full max-w-4xl px-8 flex-1 flex flex-col justify-center space-y-16">
                 {/* Welcome Text */}
                 <div className="text-center space-y-4">
-                    <h1 className="text-5xl font-semibold text-white">Hey! Raf</h1>
+                    <h1 className="text-5xl font-semibold text-white">Hey! {user?.firstName}</h1>
                     <p className="text-xl text-gray-400">What can I help with?</p>
                 </div>
 
@@ -50,7 +51,6 @@ export default function NewChat() {
                         </button>
                     ))}
                 </div>
-
                 <ChatInput/>
             </div>
 

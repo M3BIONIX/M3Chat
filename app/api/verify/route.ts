@@ -1,55 +1,65 @@
 import { WorkOS } from "@workos-inc/node";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import {VerifyCodeRequestSchema } from "@/lib/schemas/ApiSchema";
+import {validateRequest, createValidatedResponse, createErrorResponse} from "@/lib/utils/apiValidation";
+import {handleWorkOSError, getErrorMessage} from "@/lib/utils/errorHandling";
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY!);
-const workOsClientID = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID
+const workOsClientID = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID;
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
-        const { code } = body;
+        // Validate request body
+        const validation = await validateRequest(request, VerifyCodeRequestSchema);
+        if (!validation.success) {
+            return createErrorResponse(validation.error, validation.status);
+        }
+
+        const { code } = validation.data;
 
         if(!workOsClientID) {
-            return NextResponse.json(
-                { error: 'Server configuration error: WorkOS Client ID is missing' },
-                { status: 500 }
+            return createErrorResponse(
+                'Server configuration error: WorkOS Client ID is missing',
+                500,
+                'CONFIG_ERROR'
             );
         }
 
-        if (!code) {
-            return NextResponse.json(
-                { error: 'Verification code is required' },
-                { status: 400 }
-            );
-        }
+        try {
+            await workos.userManagement.authenticateWithCode({
+                code,
+                clientId: workOsClientID
+            });
 
-        await workos.userManagement.authenticateWithCode({
-            code,
-            clientId: workOsClientID
-        });
+            const response = {
+                success: true,
+                message: 'Verification code sent to your email'
+            };
 
-        return NextResponse.json({
-            success: true,
-            message: 'Verification code sent to your email'
-        });
-    } catch (error: any) {
-        console.error('Error verifying code:', error);
-        
-        let errorMessage = 'Failed to verify code. Please try again.';
-        
-        if (error.message) {
-            if (error.message.includes('invalid') || error.message.includes('incorrect')) {
+            return createValidatedResponse(response);
+        } catch (error) {
+            const appError = handleWorkOSError(error);
+            let errorMessage = getErrorMessage(appError);
+            
+            // Extract user-friendly error message
+            if (errorMessage.includes('invalid') || errorMessage.includes('incorrect')) {
                 errorMessage = 'Invalid verification code. Please check and try again.';
-            } else if (error.message.includes('expired')) {
+            } else if (errorMessage.includes('expired')) {
                 errorMessage = 'Verification code has expired. Please request a new one.';
-            } else {
-                errorMessage = error.message;
             }
-        }
 
-        return NextResponse.json(
-            { error: errorMessage },
-            { status: error.status || 500 }
+            return createErrorResponse(
+                errorMessage,
+                appError.statusCode,
+                appError.code
+            );
+        }
+    } catch (error) {
+        console.error('Error verifying code:', error);
+        const errorMessage = getErrorMessage(error);
+        return createErrorResponse(
+            errorMessage || 'Failed to verify code. Please try again.',
+            500
         );
     }
 }

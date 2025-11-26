@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUserHook } from "@/hooks/UserHook";
 import { showError } from "@/lib/utils/toast";
+import { isVerificationRequiredError } from "@/lib/utils/errorHandling";
+import { VerificationRequiredError } from "@/lib/schemas/ErrorSchema";
 
 export default function LoginForm() {
     const [email, setEmail] = useState('');
@@ -21,10 +23,11 @@ export default function LoginForm() {
         try {
             await authenticateUserByEmail({ email, password });
             router.push('/chat');
-        } catch (error: any) {
-            if (error.message === 'VERIFICATION_REQUIRED') {
+        } catch (error: unknown) {
+            if (isVerificationRequiredError(error)) {
                 // Redirect to verify page with token
-                router.push(`/auth/verify?token=${encodeURIComponent(error.pendingAuthenticationToken)}&email=${encodeURIComponent(error.email || email)}`);
+                const verificationError = error as VerificationRequiredError;
+                router.push(`/auth/verify?token=${encodeURIComponent(verificationError.pendingAuthenticationToken)}&email=${encodeURIComponent(verificationError.email || email)}`);
             } else {
                 showError(error, 'Failed to login');
             }

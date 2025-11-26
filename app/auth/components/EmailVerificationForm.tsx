@@ -23,7 +23,7 @@ export default function EmailVerificationForm({ token, email }: EmailVerificatio
         try {
             await verifyEmailAndLogin(token, code);
             router.push('/chat');
-        } catch (error: any) {
+        } catch (error: unknown) {
             showError(error, 'Invalid verification code');
         } finally {
             setIsLoading(false);
