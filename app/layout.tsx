@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import {ConvexClientProvider} from "@/app/ConvexClientProvider";
 import "./globals.css";
 import {QueryClientProviderWrapper} from "@/app/QueryClientProvider";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,7 @@ export default function RootLayout({
       <ConvexClientProvider>
           <QueryClientProviderWrapper>
             {children}
+            <Toaster position="top-center" richColors />
           </QueryClientProviderWrapper>
       </ConvexClientProvider>
       </body>

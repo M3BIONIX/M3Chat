@@ -1,12 +1,5 @@
 import * as z from 'zod';
 
-const authModal = z.object({
-    showForgotPassword: z.boolean(),
-    showSignup: z.boolean(),
-})
-
-export type AuthModalSchema = z.infer<typeof authModal>;
-
 const User = z.object({
     externalId: z.string(),
     email: z.string(),

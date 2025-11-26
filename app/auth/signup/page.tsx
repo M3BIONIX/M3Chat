@@ -2,11 +2,11 @@
 
 import { Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import LoginForm from "@/app/auth/components/LoginForm";
+import SignupForm from "@/app/auth/components/SignupForm";
 import { useUserHook } from "@/hooks/UserHook";
 import { showError } from "@/lib/utils/toast";
 
-export default function LoginPage() {
+export default function SignupPage() {
     const { authenticateWithGithub, authenticateWithGoogle } = useUserHook();
 
     const handleGoogleAuth = async () => {
@@ -33,12 +33,12 @@ export default function LoginPage() {
                         <Sparkles className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl text-white mb-2">Welcome Back</h1>
-                        <p className="text-gray-400">Sign in to continue your conversations</p>
+                        <h1 className="text-3xl text-white mb-2">Create Account</h1>
+                        <p className="text-gray-400">Get started with M3 Chat today</p>
                     </div>
                 </div>
 
-                <LoginForm />
+                <SignupForm />
 
                 <div className="relative">
                     <div className="absolute inset-0 flex items-center">
@@ -68,19 +68,13 @@ export default function LoginPage() {
                 </div>
 
                 <div className="text-center text-sm text-gray-400">
-                    Don&#39;t have an account?{' '}
-                    <Link href="/auth/signup" className="text-cyan-400 hover:text-cyan-300">
-                        Sign up
+                    Already have an account?{' '}
+                    <Link href="/auth" className="text-cyan-400 hover:text-cyan-300">
+                        Sign in
                     </Link>
                 </div>
-            </div>
-
-            <div className="lg:hidden text-center mt-8 text-sm text-gray-500">
-                By continuing, you agree to M3 Chat&#39;s{' '}
-                <button className="text-gray-400 hover:text-gray-300">Terms of Service</button>
-                {' '}and{' '}
-                <button className="text-gray-400 hover:text-gray-300">Privacy Policy</button>
             </div>
         </div>
     );
 }
+
