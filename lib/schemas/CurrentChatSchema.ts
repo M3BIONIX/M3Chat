@@ -8,3 +8,13 @@ const currentChatSchema = z.object({
 })
 
 export type CurrentChat = z.infer<typeof currentChatSchema>;
+
+const createMessageSchema = z.object({
+    conversationId: z.string(),
+    whoSaid: z.union([z.literal("user"), z.literal("agent")]),
+    message: z.string(),
+    model:  z.optional(z.string()),
+})
+
+export type CreateMessageSchema = z.infer<typeof createMessageSchema>;
+export type Messages = z.infer<typeof createMessageSchema>;

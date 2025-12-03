@@ -5,7 +5,7 @@ const conversationTableName = "conversations";
 
 export const createConversation = mutation({
     args: {
-        userId: v.id("users"),
+        userId: v.string(),
     },
     handler: async (ctx, args) => {
         const id = crypto.randomUUID();

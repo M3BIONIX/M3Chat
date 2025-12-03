@@ -1,6 +1,5 @@
 import {NextRequest} from "next/server";
 import {WorkOS} from "@workos-inc/node";
-import {GetUserResponseSchema} from "@/lib/schemas/ApiSchema";
 import {UserSchema} from "@/lib/schemas/AuthSchema";
 import {createValidatedResponse, createErrorResponse} from "@/lib/utils/apiValidation";
 import {getErrorMessage} from "@/lib/utils/errorHandling";
@@ -35,9 +34,9 @@ export async function GET(request: NextRequest) {
             const userResponse: UserSchema = {
                 externalId: session.user.externalId || '',
                 email: session.user.email || '',
-                firstName: session.user.firstName || null,
-                lastName: session.user.lastName || null,
-                profilePicture: session.user.profilePictureUrl || null,
+                firstName: session.user.firstName || '',
+                lastName: session.user.lastName || '',
+                profilePicture: session.user.profilePictureUrl || '',
                 emailVerified: session.user.emailVerified || false,
             };
 

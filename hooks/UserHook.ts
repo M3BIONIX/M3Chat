@@ -286,8 +286,38 @@ export function useUserHook() {
             throw new Error('WorkOS Client ID not configured');
         }
 
-        const redirectUri = `${window.location.origin}/auth/callback`;
-        window.location.href = `https://api.workos.com/sso/authorize?client_id=${workOsClientId}&provider=google&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+        try {
+            const response = await fetch(`/api/sso`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    provider: 'GoogleOAuth',
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Unable to initiate Google authentication';
+                throw new Error(errorMessage);
+            }
+
+            // Validate that redirectUrl exists
+            if (!data || typeof data !== 'object' || !('redirectUrl' in data) || typeof data.redirectUrl !== 'string') {
+                throw new Error('Invalid response from authentication service');
+            }
+
+            window.location.href = data.redirectUrl;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error('Failed to authenticate with Google. Please try again.');
+        }
     }
 
     async function authenticateWithGithub() {
@@ -295,8 +325,38 @@ export function useUserHook() {
             throw new Error('WorkOS Client ID not configured');
         }
 
-        const redirectUri = `${window.location.origin}/auth/callback`;
-        window.location.href = `https://api.workos.com/sso/authorize?client_id=${workOsClientId}&provider=github&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+        try {
+            const response = await fetch(`/api/sso`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    provider: 'GitHubOAuth',
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = typeof data === 'object' && data !== null && 'error' in data
+                    ? String(data.error)
+                    : 'Unable to initiate Github authentication';
+                throw new Error(errorMessage);
+            }
+
+            // Validate that redirectUrl exists
+            if (!data || typeof data !== 'object' || !('redirectUrl' in data) || typeof data.redirectUrl !== 'string') {
+                throw new Error('Invalid response from authentication service');
+            }
+
+            window.location.href = data.redirectUrl;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error('Failed to authenticate with Github. Please try again.');
+        }
     }
 
     return {

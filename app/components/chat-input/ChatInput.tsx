@@ -4,15 +4,14 @@ import FileList from "@/app/components/file-list/FileList";
 import {FileInput} from "@/app/components/file-input/FileInput";
 import useFileInputHook from "@/hooks/FileInputHooks";
 
-export default function ChatInput() {
+interface ChatInputProps {
+    handleSend: (message: string) => void;
+}
+
+export const ChatInput = ({handleSend}: ChatInputProps )=> {
     const [input, setInput] = useState('');
     const attachedFiles = useFileInputHook().files
 
-    const handleSend = () => {
-        // if (!input.trim() && attachedFiles.length === 0) return;
-        // setInput('');
-        // setAttachedFiles([]);
-    };
     return (
         <>
         <FileList />
@@ -20,10 +19,9 @@ export default function ChatInput() {
             <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
+                onKeyDown={async (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        handleSend();
                     }
                 }}
                 placeholder="Ask me anything ......."
@@ -34,7 +32,9 @@ export default function ChatInput() {
             <div className="flex items-center justify-between">
                 <FileInput />
                 <button
-                    onClick={handleSend}
+                    onClick={() => {
+                        handleSend(input);
+                    }}
                     disabled={!input.trim() && attachedFiles.length === 0}
                     className="h-10 w-10 flex justify-center items-center bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl transition-all"
                 >

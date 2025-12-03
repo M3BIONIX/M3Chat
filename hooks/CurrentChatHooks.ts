@@ -6,14 +6,14 @@ import {Id} from "@/convex/_generated/dataModel";
 
 export const currentChatQueryKey = ['currentChat']
 
-export default function useCurrentChatHook() {
+export default function useCurrentChatHook(convoId?: Id<"conversations">) {
     const queryClient = useQueryClient();
     const convex = useConvex();
 
     const currentChat = useQuery({
         queryKey: currentChatQueryKey,
-        queryFn: () => {
-            return {} as CurrentChat
+        queryFn: async() => {
+            return convoId ? await loadConversation(convoId) : {} as CurrentChat;
         },
         initialData: {} as CurrentChat,
         staleTime: Infinity,
@@ -21,7 +21,7 @@ export default function useCurrentChatHook() {
     })
 
     const createConversationMutation = useMutation({
-        mutationFn: async (userId: Id<"users">) => {
+        mutationFn: async (userId: string) => {
             return await convex.mutation(api.conversations.createConversation, {
                 userId
             })
@@ -36,11 +36,10 @@ export default function useCurrentChatHook() {
 
     const loadConversationMutation = useMutation({
         mutationFn: async (conversationId: Id<"conversations">) => {
-            const conversation = await convex.mutation(
+            return await convex.mutation(
                 api.conversations.getConversation,
-                { convoId: conversationId }
+                {convoId: conversationId}
             );
-            return conversation;
         },
         onSuccess: (conversation) => {
             if (conversation) {
@@ -55,7 +54,7 @@ export default function useCurrentChatHook() {
     });
 
 
-    const createConversation = async(userId: Id<"users">) => {
+    const createConversation = async(userId: string) => {
         return await createConversationMutation.mutateAsync(userId) as string;
     }
 

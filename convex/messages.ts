@@ -1,4 +1,4 @@
-import {mutation} from "@/convex/_generated/server";
+import {mutation, query} from "@/convex/_generated/server";
 import {v} from "convex/values";
 
 const conversationsTable = "conversations";
@@ -26,7 +26,7 @@ export const createMessage = mutation({
     },
 });
 
-export const getAllMessagesByConversationId = mutation({
+export const getAllMessagesByConversationId = query({
     args: {
         convoId: v.id(conversationsTable)
     },
