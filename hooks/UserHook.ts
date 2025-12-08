@@ -1,7 +1,7 @@
-import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {CreateUserSchema, LoginSchema, UserSchema} from "@/lib/schemas/AuthSchema";
-import {VerificationRequiredError} from "@/lib/schemas/ErrorSchema";
-import {validateResponse} from "@/lib/utils/apiValidation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CreateUserSchema, LoginSchema, User, UserSchema } from "@/lib/schemas/AuthSchema";
+import { VerificationRequiredError } from "@/lib/schemas/ErrorSchema";
+import { validateResponse } from "@/lib/utils/apiValidation";
 import * as z from 'zod';
 
 export const userHookKey = ['userHook'];
@@ -27,18 +27,8 @@ export function useUserHook() {
             }
 
             const data = await response.json();
-            
-            // Validate response with schema
-            const UserZodSchema = z.object({
-                externalId: z.string(),
-                email: z.string(),
-                firstName: z.string().nullable().optional(),
-                lastName: z.string().nullable().optional(),
-                emailVerified: z.boolean(),
-                profilePicture: z.optional(z.string().url().nullable()),
-            });
-            
-            const validation = validateResponse(data, UserZodSchema);
+
+            const validation = validateResponse(data, User);
             if (!validation.success) {
                 throw new Error(validation.error);
             }
@@ -64,24 +54,14 @@ export function useUserHook() {
 
             const data = await response.json();
 
-            if(!response.ok) {
+            if (!response.ok) {
                 const errorMessage = typeof data === 'object' && data !== null && 'error' in data
                     ? String(data.error)
                     : 'Unable to create user';
                 throw new Error(errorMessage);
             }
 
-            // Validate response
-            const UserZodSchema = z.object({
-                externalId: z.string(),
-                email: z.string(),
-                firstName: z.string().nullable().optional(),
-                lastName: z.string().nullable().optional(),
-                emailVerified: z.boolean(),
-                profilePicture: z.optional(z.string().url().nullable()),
-            });
-            
-            const validation = validateResponse(data, UserZodSchema);
+            const validation = validateResponse(data, User);
             if (!validation.success) {
                 throw new Error(validation.error);
             }
@@ -117,7 +97,7 @@ export function useUserHook() {
 
             const data = await response.json();
 
-            if(!response.ok) {
+            if (!response.ok) {
                 const errorMessage = typeof data === 'object' && data !== null && 'error' in data
                     ? String(data.error)
                     : 'Unable to authenticate';
@@ -134,10 +114,10 @@ export function useUserHook() {
     }
 
     async function authenticateUserByEmail(userData: LoginSchema) {
-        if(!workOsClientId) {
+        if (!workOsClientId) {
             throw new Error('WorkOS Client ID not configured');
         }
-        
+
         try {
             const response = await fetch('/api/login', {
                 method: 'POST',
@@ -150,8 +130,8 @@ export function useUserHook() {
             const data = await response.json();
 
             // If verification is required, throw VerificationRequiredError
-            if (typeof data === 'object' && data !== null && 
-                'requiresVerification' in data && 
+            if (typeof data === 'object' && data !== null &&
+                'requiresVerification' in data &&
                 data.requiresVerification === true &&
                 'pendingAuthenticationToken' in data &&
                 typeof data.pendingAuthenticationToken === 'string') {
@@ -161,7 +141,7 @@ export function useUserHook() {
                 );
             }
 
-            if(!response.ok) {
+            if (!response.ok) {
                 const errorMessage = typeof data === 'object' && data !== null && 'error' in data
                     ? String(data.error)
                     : 'Unable to login user';
@@ -177,7 +157,7 @@ export function useUserHook() {
                 emailVerified: z.boolean(),
                 profilePicture: z.optional(z.string().url().nullable()),
             });
-            
+
             const validation = validateResponse(data, UserZodSchema);
             if (!validation.success) {
                 throw new Error(validation.error);
@@ -207,33 +187,23 @@ export function useUserHook() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    pendingAuthenticationToken, 
-                    code 
+                body: JSON.stringify({
+                    pendingAuthenticationToken,
+                    code
                     // NO email or password here!
                 }),
             });
 
             const data = await response.json();
 
-            if(!response.ok) {
+            if (!response.ok) {
                 const errorMessage = typeof data === 'object' && data !== null && 'error' in data
                     ? String(data.error)
                     : 'Invalid verification code';
                 throw new Error(errorMessage);
             }
 
-            // Validate response
-            const UserZodSchema = z.object({
-                externalId: z.string(),
-                email: z.string(),
-                firstName: z.string().nullable().optional(),
-                lastName: z.string().nullable().optional(),
-                emailVerified: z.boolean(),
-                profilePicture: z.optional(z.string().url().nullable()),
-            });
-            
-            const validation = validateResponse(data, UserZodSchema);
+            const validation = validateResponse(data, User);
             if (!validation.success) {
                 throw new Error(validation.error);
             }
@@ -260,12 +230,12 @@ export function useUserHook() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({email}),
+                body: JSON.stringify({ email }),
             })
 
             const data = await sendCode.json();
 
-            if(!sendCode.ok) {
+            if (!sendCode.ok) {
                 const errorMessage = typeof data === 'object' && data !== null && 'error' in data
                     ? String(data.error)
                     : 'Unable to send code';

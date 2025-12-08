@@ -1,6 +1,6 @@
-import {WorkOS} from "@workos-inc/node";
+import {GenericServerException, WorkOS} from "@workos-inc/node";
 import {NextRequest, NextResponse} from "next/server";
-import {LoginRequestSchema, LoginResponseSchema} from "@/lib/schemas/ApiSchema";
+import {LoginRequestSchema } from "@/lib/schemas/ApiSchema";
 import {UserSchema} from "@/lib/schemas/AuthSchema";
 import {validateRequest, createValidatedResponse, createErrorResponse} from "@/lib/utils/apiValidation";
 import {handleWorkOSError, requiresEmailVerification, extractPendingAuthToken, extractEmailFromError} from "@/lib/utils/errorHandling";
@@ -121,9 +121,10 @@ export async function POST(request: NextRequest) {
             return response;
         } catch (error) {
             // Check if error requires email verification
+            const e = error as GenericServerException
             if (requiresEmailVerification(error)) {
-                const token = extractPendingAuthToken(error);
-                const emailFromError = extractEmailFromError(error);
+                const token = extractPendingAuthToken(e);
+                const emailFromError = extractEmailFromError(e);
 
                 if (token) {
                     return NextResponse.json(

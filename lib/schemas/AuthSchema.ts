@@ -1,12 +1,12 @@
 import * as z from 'zod';
 
-const User = z.object({
+export const User = z.object({
     externalId: z.string(),
     email: z.string(),
-    firstName: z.string(),
-    lastName: z.string(),
+    firstName: z.string().nullable().optional(),
+    lastName: z.string().nullable().optional(),
     emailVerified: z.boolean(),
-    profilePicture: z.optional(z.url()),
+    profilePicture: z.string().nullable().optional(),
 })
 
 export type UserSchema = z.infer<typeof User>;
