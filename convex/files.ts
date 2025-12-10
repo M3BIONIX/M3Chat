@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import {action, mutation, query} from "@/convex/_generated/server";
+import { action, mutation, query } from "@/convex/_generated/server";
 
 const MAX_SIZE = 10 * 1024 * 1024;
 
@@ -19,10 +19,10 @@ export const uploadFiles = mutation({
         conversationId: v.optional(v.id(conversationsTable))
     },
     handler: async (ctx, args) => {
-        if(args.size > MAX_SIZE) {
+        if (args.size > MAX_SIZE) {
             throw new Error(`File ${args.name} exceeds 10MB limit.`);
         }
-        if(args.type != "application/pdf" && args.type != "application/txt") {
+        if (args.type != "application/pdf" && args.type != "application/txt") {
             throw new Error("M3 Chat only supports PDF or TXT Files");
         }
 
@@ -90,4 +90,17 @@ export const deleteFile = mutation({
 
         return { success: true };
     },
+});
+
+/**
+ * Get file metadata by ID (for use in actions)
+ */
+export const getFileMetadata = query({
+    args: {
+        fileId: v.id(attachedFilesTable)
+    },
+    handler: async (ctx, args) => {
+        const file = await ctx.db.get(args.fileId);
+        return file;
+    }
 });

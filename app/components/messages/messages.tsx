@@ -3,7 +3,9 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useEffect, useRef, useCallback, useState } from "react";
 import { M3Logo } from "@/app/components/branding/M3Logo";
 import { Streamdown } from "streamdown";
-import { Copy, RefreshCcw, Check } from "lucide-react";
+import { Copy, RefreshCcw, Check, Paperclip, Download } from "lucide-react";
+import { useConvex } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface MessageProps {
     convoId: Id<"conversations"> | undefined;
@@ -14,9 +16,11 @@ interface MessageProps {
 
 export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }: MessageProps) => {
     const { messages, isLoading } = useMessageHook(convoId);
+    const convex = useConvex();
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const wasAtBottomRef = useRef(true);
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [messageFiles, setMessageFiles] = useState<Record<string, any[]>>({});
 
     // Check if user is at bottom of scroll
     const isAtBottom = useCallback(() => {
@@ -71,13 +75,47 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
         );
     }
 
-    // Map messages from Convex query
+    // Map messages from Convex query and fetch file metadata
     const allMessages = (messages.data || []).map((m: any, idx: number) => ({
         id: m._id || `msg-${idx}`,
         conversationId: m.conversationId ? String(m.conversationId) : "",
         whoSaid: m.whoSaid as "user" | "agent",
         message: m.message,
+        attachedFileIds: m.attachedFileIds || [],
     }));
+
+    // Fetch file metadata for messages with attachments
+    useEffect(() => {
+        const fetchFileMetadata = async () => {
+            const filesMap: Record<string, any[]> = {};
+
+            for (const msg of allMessages) {
+                if (msg.attachedFileIds && msg.attachedFileIds.length > 0) {
+                    try {
+                        const files = await convex.query(api.fileMetadata.getFilesByIds, {
+                            fileIds: msg.attachedFileIds,
+                        });
+                        filesMap[msg.id] = files || [];
+                    } catch (error) {
+                        console.error(`Error fetching files for message ${msg.id}:`, error);
+                        filesMap[msg.id] = [];
+                    }
+                }
+            }
+
+            setMessageFiles(filesMap);
+        };
+
+        if (allMessages.length > 0) {
+            fetchFileMetadata();
+        }
+    }, [messages.data]);
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
 
     if (allMessages.length === 0 && !isStreaming) {
         return (
@@ -125,6 +163,25 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
                                     )}
                                 </div>
                             </div>
+
+                            {/* Attached Files Display */}
+                            {isUser && messageFiles[message.id] && messageFiles[message.id].length > 0 && (
+                                <div className={`flex flex-wrap gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+                                    {messageFiles[message.id].map((file: any, fileIdx: number) => (
+                                        <a
+                                            key={fileIdx}
+                                            href={file.url}
+                                            download={file.name}
+                                            className="flex items-center gap-2 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-[#252525] transition-colors group/file"
+                                        >
+                                            <Paperclip className="h-4 w-4 text-cyan-400" />
+                                            <span className="text-gray-300 max-w-[200px] truncate">{file.name}</span>
+                                            <span className="text-gray-500 text-xs">({formatFileSize(file.size)})</span>
+                                            <Download className="h-3 w-3 text-gray-500 group-hover/file:text-cyan-400" />
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
 
                             {/* Action Buttons for Agent Messages */}
                             {!isUser && !isStreaming && (

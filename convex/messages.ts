@@ -10,6 +10,7 @@ export const createMessage = mutation({
         whoSaid: v.union(v.literal("user"), v.literal("agent")),
         message: v.string(),
         model: v.optional(v.string()),
+        attachedFileIds: v.optional(v.array(v.id("attachedFiles"))),
     },
     handler: async (ctx, args) => {
         const id = crypto.randomUUID();
@@ -22,6 +23,7 @@ export const createMessage = mutation({
             message: args.message,
             createdAt: epochNumber,
             model: args.model,
+            attachedFileIds: args.attachedFileIds,
         });
     },
 });

@@ -14,6 +14,7 @@ import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSettingsHook } from "@/hooks/SettingsHook";
+import useFileInputHook from "@/hooks/FileInputHooks";
 
 const suggestions = [
     {
@@ -66,6 +67,7 @@ export default function NewChat() {
     const userData = userQuery.data;
 
     const { settings, updateSettings } = useSettingsHook(userData?.id);
+    const { files: attachedFiles } = useFileInputHook();
 
     const [activeConvoId, setActiveConvoId] = useState<Id<"conversations"> | undefined>();
     const [activePublicId, setActivePublicId] = useState<string | undefined>();
@@ -100,10 +102,21 @@ export default function NewChat() {
             // Invalidate to show new conversation in sidebar
             await queryClient.invalidateQueries({ queryKey: ["conversations"] });
 
+            // Link any attached files to this conversation
+            const fileIds: Id<"attachedFiles">[] = [];
+            for (const file of attachedFiles) {
+                await convex.mutation(api.files.patchConversationIdToUploadedFiles, {
+                    fileId: file.id as Id<"attachedFiles">,
+                    convoId: convoId,
+                });
+                fileIds.push(file.id as Id<"attachedFiles">);
+            }
+
             await addMessage({
                 conversationId: convoId,
                 whoSaid: "user",
                 message: suggestion,
+                attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
             });
 
             // Trigger AI response with title generation (runs in parallel on server)
@@ -115,7 +128,7 @@ export default function NewChat() {
         }
     };
 
-    const handleSendClick = async (userMessage: string) => {
+    const handleSendClick = async (userMessage: string, attachedFileIds?: string[]) => {
         if (userData?.id) {
             let convoId = activeConvoId;
             let publicId = activePublicId;
@@ -138,12 +151,25 @@ export default function NewChat() {
             }
 
             if (convoId) {
+                // Link any attached files to this conversation
+                const fileIds: Id<"attachedFiles">[] = [];
+                if (attachedFileIds && attachedFileIds.length > 0) {
+                    for (const fileId of attachedFileIds) {
+                        await convex.mutation(api.files.patchConversationIdToUploadedFiles, {
+                            fileId: fileId as Id<"attachedFiles">,
+                            convoId: convoId,
+                        });
+                        fileIds.push(fileId as Id<"attachedFiles">);
+                    }
+                }
+
                 // If it's a new conversation, we add the message and start AI
                 if (isNew || !isNew) {
                     await addMessage({
                         conversationId: convoId,
                         whoSaid: "user",
                         message: userMessage,
+                        attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
                     });
                 }
 

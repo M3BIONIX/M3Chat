@@ -1,5 +1,5 @@
 import { Mistral } from "@mistralai/mistralai";
-import { fetchQuery } from "convex/nextjs";
+import { fetchQuery, fetchAction } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT } from "@/lib/mistralConfig";
@@ -53,10 +53,34 @@ export async function POST(req: Request) {
         convoId: convoId as Id<"conversations">,
     });
 
-    // Map to Mistral format
-    const mistralMessages = messages.map((m) => ({
-        role: m.whoSaid === "user" ? ("user" as const) : ("assistant" as const),
-        content: m.message,
+    // Map to Mistral format and include file content
+    const mistralMessages = await Promise.all(messages.map(async (m) => {
+        let messageContent = m.message;
+
+        // If this is a user message with attachments, fetch and append file content
+        if (m.whoSaid === "user" && m.attachedFileIds && m.attachedFileIds.length > 0) {
+            try {
+                const fileContents = await fetchAction(api.fileProcessing.extractMultipleFileContents, {
+                    fileIds: m.attachedFileIds,
+                });
+
+                if (fileContents && fileContents.length > 0) {
+                    const fileTexts = fileContents.map((fc: any) =>
+                        `\n\n[Attached File: ${fc.fileName}]\n${fc.content}`
+                    ).join('\n');
+
+                    messageContent = `${m.message}${fileTexts}`;
+                }
+            } catch (error) {
+                console.error("Error fetching file content:", error);
+                // Continue without file content if there's an error
+            }
+        }
+
+        return {
+            role: m.whoSaid === "user" ? ("user" as const) : ("assistant" as const),
+            content: messageContent,
+        };
     }));
 
     // Build system prompt with custom personality

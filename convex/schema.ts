@@ -30,7 +30,8 @@ export default defineSchema({
         ),
         message: v.string(),
         createdAt: v.number(),
-        model: v.optional(v.string())
+        model: v.optional(v.string()),
+        attachedFileIds: v.optional(v.array(v.id("attachedFiles")))
     }).index("by_conversation", ["conversationId"]),
     userSettings: defineTable({
         userId: v.string(),

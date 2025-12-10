@@ -9,6 +9,9 @@
  */
 
 import type * as conversations from "../conversations.js";
+import type * as fileContent from "../fileContent.js";
+import type * as fileMetadata from "../fileMetadata.js";
+import type * as fileProcessing from "../fileProcessing.js";
 import type * as files from "../files.js";
 import type * as messages from "../messages.js";
 import type * as profileImage from "../profileImage.js";
@@ -22,6 +25,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   conversations: typeof conversations;
+  fileContent: typeof fileContent;
+  fileMetadata: typeof fileMetadata;
+  fileProcessing: typeof fileProcessing;
   files: typeof files;
   messages: typeof messages;
   profileImage: typeof profileImage;

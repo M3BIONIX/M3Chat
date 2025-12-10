@@ -38,6 +38,7 @@ export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) =
                 whoSaid: req.whoSaid,
                 message: req.message,
                 model: req.model,
+                attachedFileIds: req.attachedFileIds as any,
             });
         },
         onSuccess: async () => {

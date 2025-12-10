@@ -6,7 +6,7 @@ import useFileInputHook from "@/hooks/FileInputHooks";
 import { ModelSelector } from "@/app/components/settings/ModelSelector";
 
 interface ChatInputProps {
-    handleSend?: (message: string) => void;
+    handleSend?: (message: string, attachedFileIds?: string[]) => void;
     selectedModel?: string;
     onModelChange?: (modelId: string) => void;
 }
@@ -14,7 +14,7 @@ interface ChatInputProps {
 export const ChatInput = ({ handleSend, selectedModel, onModelChange }: ChatInputProps) => {
     const [input, setInput] = useState('');
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-    const attachedFiles = useFileInputHook().files;
+    const { files: attachedFiles, clearFiles } = useFileInputHook();
 
     const adjustHeight = () => {
         const textarea = textareaRef.current;
@@ -40,8 +40,10 @@ export const ChatInput = ({ handleSend, selectedModel, onModelChange }: ChatInpu
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             if (input.trim() || attachedFiles.length > 0) {
-                                handleSend?.(input);
+                                const fileIds = attachedFiles.map(f => f.id);
+                                handleSend?.(input, fileIds);
                                 setInput('');
+                                clearFiles();
                             }
                         }
                     }}
@@ -63,8 +65,10 @@ export const ChatInput = ({ handleSend, selectedModel, onModelChange }: ChatInpu
                     <button
                         onClick={() => {
                             if (input.trim() || attachedFiles.length > 0) {
-                                handleSend?.(input);
+                                const fileIds = attachedFiles.map(f => f.id);
+                                handleSend?.(input, fileIds);
                                 setInput('');
+                                clearFiles();
                             }
                         }}
                         disabled={!input.trim() && attachedFiles.length === 0}
