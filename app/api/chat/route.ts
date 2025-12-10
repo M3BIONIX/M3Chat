@@ -6,14 +6,46 @@ import { DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT } from "@/lib/mistralConfig";
 
 const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
 
+// Build the system prompt, incorporating custom personality if provided
+function buildSystemPrompt(customPersonality?: string | null): string {
+    if (!customPersonality || customPersonality.trim() === '') {
+        return DEFAULT_SYSTEM_PROMPT;
+    }
+
+    // Append custom personality in a way that enhances rather than overrides
+    return `${DEFAULT_SYSTEM_PROMPT}
+
+## User Preferences
+The user has requested the following personality customization. Incorporate these preferences naturally into your responses while maintaining your core guidelines and safety principles:
+
+${customPersonality.trim()}`;
+}
+
 export async function POST(req: Request) {
-    const { convoId } = await req.json();
+    const { convoId, userId } = await req.json();
 
     if (!convoId) {
         return new Response(JSON.stringify({ error: "convoId is required" }), {
             status: 400,
             headers: { "Content-Type": "application/json" },
         });
+    }
+
+    // Fetch user settings if userId is provided
+    let selectedModel = DEFAULT_MODEL;
+    let customPersonality: string | null = null;
+
+    if (userId) {
+        try {
+            const userSettings = await fetchQuery(api.userSettings.getUserSettings, { userId });
+            if (userSettings) {
+                selectedModel = userSettings.selectedModel || DEFAULT_MODEL;
+                customPersonality = userSettings.customPersonality || null;
+            }
+        } catch (error) {
+            console.error("Failed to fetch user settings:", error);
+            // Continue with defaults if settings fetch fails
+        }
     }
 
     // Fetch messages server-side from Convex
@@ -27,11 +59,14 @@ export async function POST(req: Request) {
         content: m.message,
     }));
 
+    // Build system prompt with custom personality
+    const systemPrompt = buildSystemPrompt(customPersonality);
+
     // Stream from Mistral
     const result = await client.chat.stream({
-        model: DEFAULT_MODEL,
+        model: selectedModel,
         messages: [
-            { role: "system", content: DEFAULT_SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt },
             ...mistralMessages,
         ],
     });

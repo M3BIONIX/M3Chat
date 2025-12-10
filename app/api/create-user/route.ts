@@ -1,9 +1,9 @@
 import { WorkOS } from "@workos-inc/node";
-import {NextRequest} from "next/server";
-import {CreateUserRequestSchema} from "@/lib/schemas/ApiSchema";
-import {UserSchema} from "@/lib/schemas/AuthSchema";
-import {validateRequest, createValidatedResponse, createErrorResponse} from "@/lib/utils/apiValidation";
-import {handleWorkOSError, getErrorMessage} from "@/lib/utils/errorHandling";
+import { NextRequest } from "next/server";
+import { CreateUserRequestSchema } from "@/lib/schemas/ApiSchema";
+import { UserSchema } from "@/lib/schemas/AuthSchema";
+import { validateRequest, createValidatedResponse, createErrorResponse } from "@/lib/utils/apiValidation";
+import { handleWorkOSError, getErrorMessage } from "@/lib/utils/errorHandling";
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY!);
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
                 email: createdUser.email || '',
                 firstName: createdUser.firstName || '',
                 lastName: createdUser.lastName || 'null',
-                profilePicture: createdUser.profilePictureUrl || '',
+                profilePicture: createdUser.metadata?.profilePictureUrl as string || createdUser.profilePictureUrl || '',
                 emailVerified: createdUser.emailVerified || false,
             };
 
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         } catch (error) {
             const appError = handleWorkOSError(error);
             let errorMessage = getErrorMessage(appError);
-            
+
             // Extract user-friendly error message
             if (errorMessage.includes('already exists') || errorMessage.includes('duplicate')) {
                 errorMessage = 'An account with this email already exists.';

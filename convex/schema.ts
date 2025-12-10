@@ -31,5 +31,12 @@ export default defineSchema({
         message: v.string(),
         createdAt: v.number(),
         model: v.optional(v.string())
-    }).index("by_conversation", ["conversationId"])
+    }).index("by_conversation", ["conversationId"]),
+    userSettings: defineTable({
+        userId: v.string(),
+        selectedModel: v.optional(v.string()),
+        customPersonality: v.optional(v.string()),
+        createdAt: v.number(),
+        updatedAt: v.number()
+    }).index("by_user", ["userId"])
 });

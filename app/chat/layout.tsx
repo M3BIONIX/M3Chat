@@ -6,6 +6,7 @@ import { ChatSidebar } from "@/app/components/aside-bar/AsideBar";
 import { Chat } from "@/app/components/chat-input/Chat.interface";
 import { useConversationsHook } from "@/hooks/ConversationsHook";
 import { useUserHook } from "@/hooks/UserHook";
+import { SettingsModal } from "@/app/components/settings/SettingsModal";
 
 export default function ChatLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const router = useRouter();
@@ -14,6 +15,7 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
     // Start with null to indicate "not yet determined" - server renders sidebar closed
     const [isOpen, setIsOpen] = useState<boolean | null>(null);
     const [hasMounted, setHasMounted] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // Get user and conversations
     const { user: userQuery } = useUserHook();
@@ -52,6 +54,15 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
     const handleNewChat = useCallback(() => {
         router.push('/chat');
     }, [router]);
+
+    // Handle settings modal
+    const handleOpenSettings = useCallback(() => {
+        setIsSettingsOpen(true);
+    }, []);
+
+    const handleCloseSettings = useCallback(() => {
+        setIsSettingsOpen(false);
+    }, []);
 
     // Mark as mounted after first render
     useEffect(() => {
@@ -95,12 +106,15 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
                 isOpen={sidebarOpen}
                 onToggle={handleToggle}
                 onNavigateToProfile={() => { }}
-                onNavigateToSettings={() => { }}
+                onNavigateToSettings={handleOpenSettings}
             />
 
             <main className="flex-1 flex flex-col overflow-hidden" role="main">
                 {children}
             </main>
+
+            {/* Settings Modal */}
+            <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
         </div>
     );
 }

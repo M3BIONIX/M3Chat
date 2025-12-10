@@ -1,10 +1,10 @@
-import {GenericServerException, WorkOS} from "@workos-inc/node";
-import {NextRequest, NextResponse} from "next/server";
-import {LoginRequestSchema } from "@/lib/schemas/ApiSchema";
-import {UserSchema} from "@/lib/schemas/AuthSchema";
-import {validateRequest, createValidatedResponse, createErrorResponse} from "@/lib/utils/apiValidation";
-import {handleWorkOSError, requiresEmailVerification, extractPendingAuthToken, extractEmailFromError} from "@/lib/utils/errorHandling";
-import {getErrorMessage} from "@/lib/utils/errorHandling";
+import { GenericServerException, WorkOS } from "@workos-inc/node";
+import { NextRequest, NextResponse } from "next/server";
+import { LoginRequestSchema } from "@/lib/schemas/ApiSchema";
+import { UserSchema } from "@/lib/schemas/AuthSchema";
+import { validateRequest, createValidatedResponse, createErrorResponse } from "@/lib/utils/apiValidation";
+import { handleWorkOSError, requiresEmailVerification, extractPendingAuthToken, extractEmailFromError } from "@/lib/utils/errorHandling";
+import { getErrorMessage } from "@/lib/utils/errorHandling";
 
 const workos = new WorkOS(process.env.WORKOS_API_KEY);
 const clientId = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID;
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
         const { email, password, code, pendingAuthenticationToken } = validation.data;
 
-        if(!clientId) {
+        if (!clientId) {
             return createErrorResponse(
                 'Server configuration error: WorkOS Client ID is missing',
                 500,
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
                     email: user.email || '',
                     firstName: user.firstName || '',
                     lastName: user.lastName || '',
-                    profilePicture: user.profilePictureUrl || '',
+                    profilePicture: user.metadata?.profilePictureUrl as string || user.profilePictureUrl || '',
                     emailVerified: user.emailVerified || false,
                 };
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
                 email: user.email || '',
                 firstName: user.firstName || '',
                 lastName: user.lastName || '',
-                profilePicture: user.profilePictureUrl || '',
+                profilePicture: user.metadata?.profilePictureUrl as string || user.profilePictureUrl || '',
                 emailVerified: user.emailVerified || false,
             };
 
@@ -141,10 +141,10 @@ export async function POST(request: NextRequest) {
 
             // Handle other WorkOS errors
             const appError = handleWorkOSError(error);
-            
+
             // Extract user-friendly error message
             let errorMessage = getErrorMessage(appError);
-            
+
             if (errorMessage.includes('Invalid credentials') || errorMessage.includes('incorrect')) {
                 errorMessage = 'Invalid email or password. Please check your credentials.';
             } else if (errorMessage.includes('not found') || errorMessage.includes('does not exist')) {

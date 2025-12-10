@@ -13,6 +13,7 @@ import { M3Logo } from "@/app/components/branding/M3Logo";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSettingsHook } from "@/hooks/SettingsHook";
 
 const suggestions = [
     {
@@ -64,11 +65,13 @@ export default function NewChat() {
     const { user: userQuery } = useUserHook();
     const userData = userQuery.data;
 
+    const { settings, updateSettings } = useSettingsHook(userData?.id);
+
     const [activeConvoId, setActiveConvoId] = useState<Id<"conversations"> | undefined>();
     const [activePublicId, setActivePublicId] = useState<string | undefined>();
     const { createConversation } = useCurrentChatHook();
     const [showMessages, setShowMessages] = useState<boolean>(false);
-    const { addMessage, sendToAI, streamingMessage, isStreaming, deleteMessage } = useMessageHook(activeConvoId);
+    const { addMessage, sendToAI, streamingMessage, isStreaming, deleteMessage } = useMessageHook(activeConvoId, userData?.id);
 
     // Handle title update from AI
     const handleTitleGenerated = useCallback(async (title: string, convoId: Id<"conversations">) => {
@@ -193,7 +196,14 @@ export default function NewChat() {
 
                 {/* Input Area - Fixed at bottom of the centered container */}
                 <div className="flex-shrink-0 w-full p-4 pb-6">
-                    <ChatInput handleSend={handleSendClick} />
+                    <ChatInput
+                        handleSend={handleSendClick}
+                        selectedModel={settings.data?.selectedModel}
+                        onModelChange={(modelId) => updateSettings({
+                            selectedModel: modelId,
+                            customPersonality: settings.data?.customPersonality
+                        })}
+                    />
                     <div className="text-center mt-2">
                         <p className="text-[10px] text-gray-500">M3 Chat can make mistakes. Check important info.</p>
                     </div>

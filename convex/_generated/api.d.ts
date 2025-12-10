@@ -11,6 +11,8 @@
 import type * as conversations from "../conversations.js";
 import type * as files from "../files.js";
 import type * as messages from "../messages.js";
+import type * as profileImage from "../profileImage.js";
+import type * as userSettings from "../userSettings.js";
 
 import type {
   ApiFromModules,
@@ -22,6 +24,8 @@ declare const fullApi: ApiFromModules<{
   conversations: typeof conversations;
   files: typeof files;
   messages: typeof messages;
+  profileImage: typeof profileImage;
+  userSettings: typeof userSettings;
 }>;
 
 /**
