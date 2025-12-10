@@ -148,17 +148,8 @@ export function useUserHook() {
                 throw new Error(errorMessage);
             }
 
-            // Validate response
-            const UserZodSchema = z.object({
-                externalId: z.string(),
-                email: z.string(),
-                firstName: z.string().nullable().optional(),
-                lastName: z.string().nullable().optional(),
-                emailVerified: z.boolean(),
-                profilePicture: z.optional(z.string().url().nullable()),
-            });
 
-            const validation = validateResponse(data, UserZodSchema);
+            const validation = validateResponse(data, User);
             if (!validation.success) {
                 throw new Error(validation.error);
             }

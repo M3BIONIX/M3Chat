@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import {ConvexClientProvider} from "@/app/ConvexClientProvider";
+import { ConvexClientProvider } from "@/app/ConvexClientProvider";
 import "./globals.css";
-import {QueryClientProviderWrapper} from "@/app/QueryClientProvider";
+import { QueryClientProviderWrapper } from "@/app/QueryClientProvider";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -25,17 +25,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-    return (
-    <html lang="en">
+  return (
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
-      <ConvexClientProvider>
+        <ConvexClientProvider>
           <QueryClientProviderWrapper>
             {children}
             <Toaster position="top-center" richColors />
           </QueryClientProviderWrapper>
-      </ConvexClientProvider>
+        </ConvexClientProvider>
       </body>
     </html>
   );

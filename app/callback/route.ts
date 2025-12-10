@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
                         email: profile.email,
                         firstName: profile.firstName || '',
                         lastName: profile.lastName || '',
-                        profilePictureUrl: profile.profilePictureUrl || undefined,
                         emailVerified: true, // SSO users are email verified
                     });
                 }
@@ -111,7 +110,7 @@ export async function GET(request: NextRequest) {
             console.error('SSO callback error:', error);
             const appError = handleWorkOSError(error);
             const errorMessage = getErrorMessage(appError);
-            
+
             return NextResponse.redirect(
                 new URL(`/auth?error=${encodeURIComponent(errorMessage)}`, request.url)
             );

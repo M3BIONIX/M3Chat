@@ -19,7 +19,8 @@ export default defineSchema({
         title: v.string(),
         userId: v.string(),
         createdAt: v.number()
-    }).index("by_user", ["userId"]),
+    }).index("by_user", ["userId"])
+        .index("by_public_id", ["id"]),
     messages: defineTable({
         id: v.string(),
         conversationId: v.id("conversations"),

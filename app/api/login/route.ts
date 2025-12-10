@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
                 // Validate and format user response
                 const userResponse: UserSchema = {
-                    externalId: user.externalId || '',
+                    id: user.id || '',
                     email: user.email || '',
                     firstName: user.firstName || '',
                     lastName: user.lastName || '',
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
             // Validate and format user response
             const userResponse: UserSchema = {
-                externalId: user.externalId || '',
+                id: user.id || '',
                 email: user.email || '',
                 firstName: user.firstName || '',
                 lastName: user.lastName || '',

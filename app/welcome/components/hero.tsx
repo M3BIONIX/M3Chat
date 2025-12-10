@@ -1,7 +1,7 @@
 'use client';
 import Image from "next/image"
 import { ArrowUp, Paperclip, Wand2 } from "lucide-react"
-import ChatInput from "@/app/components/chat-input/ChatInput"
+import { ChatInput } from "@/app/components/chat-input/ChatInput"
 
 export function Hero() {
   return (

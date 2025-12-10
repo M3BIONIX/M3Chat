@@ -1,5 +1,5 @@
-import {mutation, query} from "@/convex/_generated/server";
-import {v} from "convex/values";
+import { mutation, query } from "@/convex/_generated/server";
+import { v } from "convex/values";
 
 const conversationsTable = "conversations";
 const messagesTable = "messages";
@@ -26,14 +26,24 @@ export const createMessage = mutation({
     },
 });
 
+export const deleteMessage = mutation({
+    args: {
+        messageId: v.id(messagesTable),
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.messageId);
+    },
+});
+
 export const getAllMessagesByConversationId = query({
     args: {
         convoId: v.id(conversationsTable)
     },
     handler: async (ctx, args) => {
-        return await ctx.db.query(messagesTable).filter((q) =>
-            q.eq("conversationId", args.convoId.toString())
-        ).order("asc").collect();
+        return await ctx.db.query(messagesTable)
+            .withIndex("by_conversation", (q) => q.eq("conversationId", args.convoId))
+            .order("asc")
+            .collect();
     }
 })
 
@@ -42,14 +52,14 @@ export const deleteAllMessagesByConversationId = mutation({
         convoId: v.id(conversationsTable)
     },
     handler: async (ctx, args) => {
-        const messageIds = await ctx.db.query(messagesTable).filter((q) =>
-            q.eq("conversationId", args.convoId.toString())
-        ).order("asc").collect();
+        const messageIds = await ctx.db.query(messagesTable)
+            .withIndex("by_conversation", (q) => q.eq("conversationId", args.convoId))
+            .collect();
 
         for (const m of messageIds) {
             await ctx.db.delete(m._id)
         }
 
-        return { success : true}
+        return { success: true }
     }
 })

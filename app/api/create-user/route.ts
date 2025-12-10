@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
             // Validate and format user response
             const userResponse: UserSchema = {
-                externalId: createdUser.externalId || '',
+                id: createdUser.id || '',
                 email: createdUser.email || '',
                 firstName: createdUser.firstName || '',
                 lastName: createdUser.lastName || 'null',

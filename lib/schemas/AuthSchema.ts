@@ -1,7 +1,7 @@
 import * as z from 'zod';
 
 export const User = z.object({
-    externalId: z.string(),
+    id: z.string(),
     email: z.string(),
     firstName: z.string().nullable().optional(),
     lastName: z.string().nullable().optional(),

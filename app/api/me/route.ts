@@ -29,10 +29,11 @@ export async function GET(request: NextRequest) {
             if (!session.authenticated) {
                 return createErrorResponse('Invalid session', 401);
             }
+            console.log(session.user);
 
             // Validate and format user response
             const userResponse: UserSchema = {
-                externalId: session.user.externalId || '',
+                id: session.user.id || '',
                 email: session.user.email || '',
                 firstName: session.user.firstName || '',
                 lastName: session.user.lastName || '',
