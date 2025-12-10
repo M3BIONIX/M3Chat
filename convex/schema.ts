@@ -17,9 +17,10 @@ export default defineSchema({
     conversations: defineTable({
         id: v.string(),
         title: v.string(),
-        userId: v.id("users"),
+        userId: v.string(),
         createdAt: v.number()
-    }).index("by_user", ["userId"]),
+    }).index("by_user", ["userId"])
+        .index("by_public_id", ["id"]),
     messages: defineTable({
         id: v.string(),
         conversationId: v.id("conversations"),
@@ -30,5 +31,5 @@ export default defineSchema({
         message: v.string(),
         createdAt: v.number(),
         model: v.optional(v.string())
-    })
+    }).index("by_conversation", ["conversationId"])
 });

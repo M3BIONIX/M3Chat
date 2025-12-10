@@ -1,0 +1,9 @@
+# Deployment used by `npx convex dev`
+CONVEX_DEPLOYMENT=anonymous:anonymous-m3chat-backend
+MISTRAL_API_KEY=your-example-api-key
+NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210
+NEXT_PUBLIC_WORKOS_CLIENT_ID=your-work-os-id
+WORKOS_API_KEY=your-work-os-api-key
+WORKOS_COOKIE_PASSWORD=your-wors-os-cookie-password
+ENVIRONMENT=your-environment
+NEXT_PUBLIC_WORKOS_REDIRECT_URI=your-redirect-url

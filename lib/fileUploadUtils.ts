@@ -44,7 +44,8 @@ export async function uploadFiles(
         };
     }
 
-    catch (e) {
-        throw new Error(`Upload failed: ${e}`);
+    catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Upload failed: ${errorMessage}`);
     }
 }

@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    unoptimized: true, // Disable image optimization to avoid 400 errors with empty/corrupted images
+  },
 };
 
 export default nextConfig;

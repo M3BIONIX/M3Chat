@@ -1,7 +1,7 @@
 "use client";
 
 import { ConvexProviderWithAuth, ConvexReactClient} from "convex/react";
-import {ReactNode, useCallback, useState} from "react";
+import {ReactNode, useCallback, useEffect, useState} from "react";
 import {AuthKitProvider, useAccessToken, useAuth} from "@workos-inc/authkit-nextjs/components";
 
 const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -20,15 +20,11 @@ function useWorkOsAuth() {
     const isAuthLoading: boolean = (isLoading ?? false) || (tokenLoading ?? false);
     const isAuthenticated = !!user && !!accessToken && !isAuthLoading;
 
-    const [ stableAccessToken, setStableAccessToken ] = useState<string | null>(null);
-    if (accessToken && !tokenError) {
-        setStableAccessToken(accessToken)
-    }
 
     const fetchAccessToken =  useCallback(async () => {
-        if(stableAccessToken && !tokenError) return stableAccessToken;
+        if(accessToken && !tokenError) return accessToken;
         return null;
-    }, [stableAccessToken, tokenError]);
+    }, [accessToken, tokenError]);
 
     return {
         fetchAccessToken,
