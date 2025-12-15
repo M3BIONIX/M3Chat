@@ -42,42 +42,11 @@ export async function GET(request: NextRequest) {
         }
 
         try {
-            // Exchange the code for user profile and access token
-            const { profile } = await workos.sso.getProfileAndToken({
+            // Use authenticateWithCode to exchange the authorization code for user and session
+            // This is the proper method for SSO/OAuth callbacks and returns a sealed session
+            const { user, sealedSession } = await workos.userManagement.authenticateWithCode({
+                clientId,
                 code,
-                clientId,
-            });
-
-            // Get or create the user
-            let user;
-            try {
-                // Try to get the user by their email
-                const users = await workos.userManagement.listUsers({
-                    email: profile.email,
-                });
-
-                if (users.data && users.data.length > 0) {
-                    user = users.data[0];
-                } else {
-                    // Create a new user if they don't exist
-                    user = await workos.userManagement.createUser({
-                        email: profile.email,
-                        firstName: profile.firstName || '',
-                        lastName: profile.lastName || '',
-                        emailVerified: true, // SSO users are email verified
-                    });
-                }
-            } catch (userError) {
-                console.error('Error getting/creating user:', userError);
-                return NextResponse.redirect(
-                    new URL('/auth?error=user_creation_failed', request.url)
-                );
-            }
-
-            // Create a session for the user
-            const { sealedSession } = await workos.userManagement.createSession({
-                clientId,
-                userId: user.id,
                 session: {
                     sealSession: true,
                     cookiePassword: process.env.WORKOS_COOKIE_PASSWORD,
@@ -105,6 +74,7 @@ export async function GET(request: NextRequest) {
                 maxAge: 24 * 60 * 60 * 1000, // 24 hours
             });
 
+            console.log('SSO login successful for user:', user.email);
             return redirectResponse;
         } catch (error) {
             console.error('SSO callback error:', error);
