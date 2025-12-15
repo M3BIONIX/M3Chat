@@ -21,7 +21,7 @@ export function Footer() {
     <footer className="bg-black pt-20 pb-10">
       <div className="container mx-auto px-4">
         {/* CTA Section */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">Create Smarter. Faster. Together with AI.</h2>
           <p className="text-gray-400 mb-8">
             Chat, generate, and bring your ideas to life — no technical skills needed.
