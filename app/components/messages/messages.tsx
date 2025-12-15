@@ -6,6 +6,7 @@ import { Streamdown } from "streamdown";
 import { Copy, RefreshCcw, Check, Paperclip, Download } from "lucide-react";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { FileIcon } from "../file-list/FileIcon";
 
 interface MessageProps {
     convoId: Id<"conversations"> | undefined;
@@ -154,7 +155,41 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
                                         : "text-gray-100 pl-0"
                                     }
                                 `}>
-                                    {isUser ? message.message : (
+                                    {isUser ? (
+                                        <div className="flex flex-col gap-3">
+                                            {message.message}
+                                            {/* Attached Files Display inside Bubble */}
+                                            {messageFiles[message.id] && messageFiles[message.id].length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-800/50">
+                                                    {messageFiles[message.id].map((file: any, fileIdx: number) => (
+                                                        <a
+                                                            key={fileIdx}
+                                                            href={file.url}
+                                                            download={file.name}
+                                                            className="group/file relative flex items-center gap-3 bg-[#1a1a1a] rounded-xl p-3 pr-8 shadow-sm border border-gray-800 min-w-[200px] max-w-[250px] hover:border-gray-600 transition-colors text-left"
+                                                        >
+                                                            <div className="relative flex-shrink-0">
+                                                                <FileIcon type={file.type} className="w-10 h-10" />
+                                                            </div>
+
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="text-gray-200 font-medium text-sm truncate w-full" title={file.name}>
+                                                                    {file.name}
+                                                                </span>
+                                                                <span className="text-gray-500 text-xs">
+                                                                    {formatFileSize(file.size)}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="absolute top-1 right-1 p-1 text-gray-500 opacity-0 group-hover/file:opacity-100 transition-opacity">
+                                                                <Download className="h-4 w-4" />
+                                                            </div>
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
                                         <div data-streamdown-container className="min-w-0 overflow-hidden">
                                             <Streamdown shikiTheme={['github-dark', 'github-dark']}>
                                                 {message.message}
@@ -163,25 +198,6 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
                                     )}
                                 </div>
                             </div>
-
-                            {/* Attached Files Display */}
-                            {isUser && messageFiles[message.id] && messageFiles[message.id].length > 0 && (
-                                <div className={`flex flex-wrap gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
-                                    {messageFiles[message.id].map((file: any, fileIdx: number) => (
-                                        <a
-                                            key={fileIdx}
-                                            href={file.url}
-                                            download={file.name}
-                                            className="flex items-center gap-2 bg-[#1a1a1a] border border-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-[#252525] transition-colors group/file"
-                                        >
-                                            <Paperclip className="h-4 w-4 text-cyan-400" />
-                                            <span className="text-gray-300 max-w-[200px] truncate">{file.name}</span>
-                                            <span className="text-gray-500 text-xs">({formatFileSize(file.size)})</span>
-                                            <Download className="h-3 w-3 text-gray-500 group-hover/file:text-cyan-400" />
-                                        </a>
-                                    ))}
-                                </div>
-                            )}
 
                             {/* Action Buttons for Agent Messages */}
                             {!isUser && !isStreaming && (
@@ -207,7 +223,6 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
                 );
             })}
 
-            {/* Streaming AI Message */}
             {isStreaming && streamingMessage && (
                 <div className="flex w-full justify-start">
                     <div className="flex max-w-[85%] md:max-w-[80%] gap-4 flex-row min-w-0">

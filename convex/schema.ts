@@ -7,13 +7,32 @@ export default defineSchema({
         name: v.string(),
         type: v.union(
             v.literal("application/pdf"),
-            v.literal("application/txt")
+            v.literal("application/txt"),
+            v.literal("text/plain")
         ),
         size: v.number(),
         storageId: v.id("_storage"),
         conversationId: v.optional(v.id("conversations")),
-        uploadedAt: v.optional(v.number())
+        uploadedAt: v.optional(v.number()),
+        status: v.optional(v.string()), // "embedding" | "embedded" | "failed"
+        totalChunks: v.optional(v.number()),
     }),
+    fileChunks: defineTable({
+        conversationId: v.id("conversations"),
+        userId: v.string(),
+        fileName: v.string(),
+        fileId: v.id("attachedFiles"),
+        chunkIndex: v.number(),
+        content: v.string(),
+        embedding: v.array(v.float64()),
+    })
+        .vectorIndex("by_embedding", {
+            vectorField: "embedding",
+            dimensions: 1024, // Mistral embed dimensions
+            filterFields: ["conversationId"],
+        })
+        .index("by_conversation", ["conversationId"])
+        .index("by_file", ["fileId"]),
     conversations: defineTable({
         id: v.string(),
         title: v.string(),

@@ -6,19 +6,24 @@ import { DEFAULT_MODEL, DEFAULT_SYSTEM_PROMPT } from "@/lib/mistralConfig";
 
 const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
 
-// Build the system prompt, incorporating custom personality if provided
-function buildSystemPrompt(customPersonality?: string | null): string {
-    if (!customPersonality || customPersonality.trim() === '') {
-        return DEFAULT_SYSTEM_PROMPT;
+// Build the system prompt with optional file context and custom personality
+function buildSystemPrompt(
+    customPersonality?: string | null,
+    fileContext?: string | null
+): string {
+    let prompt = DEFAULT_SYSTEM_PROMPT;
+
+    // Add file context if available
+    if (fileContext && fileContext.trim() !== '') {
+        prompt += `\n\n## File Context\nThe following are relevant excerpts from files the user has uploaded. Use this context to answer questions about the files:\n\n${fileContext}`;
     }
 
-    // Append custom personality in a way that enhances rather than overrides
-    return `${DEFAULT_SYSTEM_PROMPT}
+    // Add custom personality if provided
+    if (customPersonality && customPersonality.trim() !== '') {
+        prompt += `\n\n## User Preferences\nThe user has requested the following personality customization. Incorporate these preferences naturally into your responses while maintaining your core guidelines and safety principles:\n\n${customPersonality.trim()}`;
+    }
 
-## User Preferences
-The user has requested the following personality customization. Incorporate these preferences naturally into your responses while maintaining your core guidelines and safety principles:
-
-${customPersonality.trim()}`;
+    return prompt;
 }
 
 export async function POST(req: Request) {
@@ -44,7 +49,6 @@ export async function POST(req: Request) {
             }
         } catch (error) {
             console.error("Failed to fetch user settings:", error);
-            // Continue with defaults if settings fetch fails
         }
     }
 
@@ -53,38 +57,40 @@ export async function POST(req: Request) {
         convoId: convoId as Id<"conversations">,
     });
 
-    // Map to Mistral format and include file content
-    const mistralMessages = await Promise.all(messages.map(async (m) => {
-        let messageContent = m.message;
+    // Get the latest user message for RAG search
+    const latestUserMessage = messages
+        .filter(m => m.whoSaid === "user")
+        .pop();
 
-        // If this is a user message with attachments, fetch and append file content
-        if (m.whoSaid === "user" && m.attachedFileIds && m.attachedFileIds.length > 0) {
-            try {
-                const fileContents = await fetchAction(api.fileProcessing.extractMultipleFileContents, {
-                    fileIds: m.attachedFileIds,
-                });
+    // Search for relevant file chunks using vector similarity
+    let fileContext: string | null = null;
 
-                if (fileContents && fileContents.length > 0) {
-                    const fileTexts = fileContents.map((fc: any) =>
-                        `\n\n[Attached File: ${fc.fileName}]\n${fc.content}`
-                    ).join('\n');
+    if (latestUserMessage) {
+        try {
+            const relevantChunks = await fetchAction(api.fileEmbeddings.searchRelevantChunks, {
+                conversationId: convoId as Id<"conversations">,
+                query: latestUserMessage.message
+            });
 
-                    messageContent = `${m.message}${fileTexts}`;
-                }
-            } catch (error) {
-                console.error("Error fetching file content:", error);
-                // Continue without file content if there's an error
+            if (relevantChunks && relevantChunks.length > 0) {
+                fileContext = relevantChunks
+                    .map((chunk) => `[From ${chunk.fileName}]:\n${chunk.content}`)
+                    .join('\n\n---\n\n');
             }
+        } catch (error) {
+            console.error("Error searching file chunks:", error);
         }
+    }
 
-        return {
-            role: m.whoSaid === "user" ? ("user" as const) : ("assistant" as const),
-            content: messageContent,
-        };
+    // Map messages to Mistral format (simplified - no file content appending)
+    // <--Todo--> Change this to user messages embedding <--Todo-->
+    const mistralMessages = messages.map((m) => ({
+        role: m.whoSaid === "user" ? ("user" as const) : ("assistant" as const),
+        content: m.message,
     }));
 
-    // Build system prompt with custom personality
-    const systemPrompt = buildSystemPrompt(customPersonality);
+    // Build system prompt with file context
+    const systemPrompt = buildSystemPrompt(customPersonality, fileContext);
 
     // Stream from Mistral
     const result = await client.chat.stream({
@@ -100,7 +106,6 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
         async start(controller) {
             try {
-                // Stream the main response
                 for await (const chunk of result) {
                     const text = chunk.data.choices[0]?.delta?.content;
                     if (typeof text === "string") {

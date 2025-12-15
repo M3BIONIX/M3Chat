@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from "@tanstack/react-query";
+import {useQuery, useQueryClient} from "@tanstack/react-query";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -14,6 +14,7 @@ export interface Conversation {
 
 export const useConversationsHook = (userId?: string) => {
     const convex = useConvex();
+    const queryClient = useQueryClient();
     const conversationsQueryKey = ["conversations", userId];
 
     const conversations = useQuery({
@@ -28,9 +29,14 @@ export const useConversationsHook = (userId?: string) => {
         initialData: [] as Conversation[],
     });
 
+    const clearConversations = async() => {
+        await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
+    }
+
     return {
         conversations,
         conversationsQueryKey,
+        clearConversations,
         isLoading: conversations.isLoading,
     };
 };

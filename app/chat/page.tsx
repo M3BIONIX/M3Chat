@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { ChatInput } from "@/app/components/chat-input/ChatInput";
 import { useUserHook } from "@/hooks/UserHook";
 import useCurrentChatHook from "@/hooks/CurrentChatHooks";
@@ -10,11 +9,13 @@ import { UserSchema } from "@/lib/schemas/AuthSchema";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMessageHook } from "@/hooks/MessageHooks";
 import { M3Logo } from "@/app/components/branding/M3Logo";
-import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSettingsHook } from "@/hooks/SettingsHook";
 import useFileInputHook from "@/hooks/FileInputHooks";
+import { useConversationsHook } from "@/hooks/ConversationsHook";
+import { useConvex } from "convex/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { processSuggestionAction, processSendAction } from "@/lib/utils/chatHelpers";
 
 const suggestions = [
     {
@@ -60,14 +61,14 @@ const WelcomeScreen = ({ user, onSuggestionClick }: { user: UserSchema | undefin
 
 
 export default function NewChat() {
-    const router = useRouter();
-    const convex = useConvex();
-    const queryClient = useQueryClient();
     const { user: userQuery } = useUserHook();
     const userData = userQuery.data;
+    const convex = useConvex();
+    const queryClient = useQueryClient();
 
     const { settings, updateSettings } = useSettingsHook(userData?.id);
-    const { files: attachedFiles } = useFileInputHook();
+    const { files: attachedFiles, clearFiles } = useFileInputHook();
+    const { clearConversations } = useConversationsHook(userData?.id);
 
     const [activeConvoId, setActiveConvoId] = useState<Id<"conversations"> | undefined>();
     const [activePublicId, setActivePublicId] = useState<string | undefined>();
@@ -90,97 +91,84 @@ export default function NewChat() {
     }, [convex, queryClient]);
 
     const handleSuggestionClick = async (suggestion: string) => {
-        if (userData?.id) {
-            const { _id: convoId, publicId } = await createConversation(userData.id);
-            setActiveConvoId(convoId);
-            setActivePublicId(publicId);
-            setShowMessages(true);
+        if (!userData?.id) return;
 
-            // Update URL without navigation (prevents refresh)
-            window.history.replaceState(null, '', `/chat/${publicId}`);
+        // Use helper to create conversation and link files
+        const { convoId, publicId, fileIds } = await processSuggestionAction(
+            convex,
+            userData.id,
+            attachedFiles,
+            createConversation
+        );
 
-            // Invalidate to show new conversation in sidebar
-            await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        // Update state
+        setActiveConvoId(convoId);
+        setActivePublicId(publicId);
+        setShowMessages(true);
 
-            // Link any attached files to this conversation
-            const fileIds: Id<"attachedFiles">[] = [];
-            for (const file of attachedFiles) {
-                await convex.mutation(api.files.patchConversationIdToUploadedFiles, {
-                    fileId: file.id as Id<"attachedFiles">,
-                    convoId: convoId,
-                });
-                fileIds.push(file.id as Id<"attachedFiles">);
-            }
+        // Update URL without navigation (prevents refresh)
+        window.history.replaceState(null, '', `/chat/${publicId}`);
 
-            await addMessage({
-                conversationId: convoId,
-                whoSaid: "user",
-                message: suggestion,
-                attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
-            });
+        // Invalidate to show new conversation in sidebar
+        await queryClient.invalidateQueries({ queryKey: ["conversations"] });
 
-            // Trigger AI response with title generation (runs in parallel on server)
-            await sendToAI(convoId, {
-                isNewConversation: true,
-                firstUserMessage: suggestion,
-                onTitleGenerated: (title) => handleTitleGenerated(title, convoId),
-            });
-        }
+        // Add user message with attached files
+        await addMessage({
+            conversationId: convoId,
+            whoSaid: "user",
+            message: suggestion,
+            attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
+        });
+
+        // Clear attached files after sending
+        clearFiles();
+
+        // Trigger AI response with title generation (runs in parallel on server)
+        await sendToAI(convoId, {
+            isNewConversation: true,
+            firstUserMessage: suggestion,
+            onTitleGenerated: (title) => handleTitleGenerated(title, convoId),
+        });
     };
 
     const handleSendClick = async (userMessage: string, attachedFileIds?: string[]) => {
-        if (userData?.id) {
-            let convoId = activeConvoId;
-            let publicId = activePublicId;
-            let isNew = false;
+        if (!userData?.id) return;
 
-            if (!showMessages) {
-                const result = await createConversation(userData.id);
-                convoId = result._id;
-                publicId = result.publicId;
-                setActiveConvoId(convoId);
-                setActivePublicId(publicId);
-                setShowMessages(true);
-                isNew = true;
+        // Use helper to create conversation if needed and link files
+        const { convoId, publicId, fileIds, isNew } = await processSendAction(
+            convex,
+            userData.id,
+            attachedFiles,
+            showMessages ? activeConvoId : undefined,
+            createConversation
+        );
 
-                // Update URL without navigation (prevents refresh)
-                window.history.replaceState(null, '', `/chat/${publicId}`);
-
-                // Invalidate to show new conversation in sidebar
-                await queryClient.invalidateQueries({ queryKey: ["conversations"] });
-            }
-
-            if (convoId) {
-                // Link any attached files to this conversation
-                const fileIds: Id<"attachedFiles">[] = [];
-                if (attachedFileIds && attachedFileIds.length > 0) {
-                    for (const fileId of attachedFileIds) {
-                        await convex.mutation(api.files.patchConversationIdToUploadedFiles, {
-                            fileId: fileId as Id<"attachedFiles">,
-                            convoId: convoId,
-                        });
-                        fileIds.push(fileId as Id<"attachedFiles">);
-                    }
-                }
-
-                // If it's a new conversation, we add the message and start AI
-                if (isNew || !isNew) {
-                    await addMessage({
-                        conversationId: convoId,
-                        whoSaid: "user",
-                        message: userMessage,
-                        attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
-                    });
-                }
-
-                // Trigger AI response (title generation runs in parallel on server for new convos)
-                await sendToAI(convoId, isNew ? {
-                    isNewConversation: true,
-                    firstUserMessage: userMessage,
-                    onTitleGenerated: (title) => handleTitleGenerated(title, convoId!),
-                } : undefined);
-            }
+        // Update state if new conversation
+        if (isNew) {
+            setActiveConvoId(convoId);
+            setActivePublicId(publicId);
+            setShowMessages(true);
+            window.history.replaceState(null, '', `/chat/${publicId}`);
+            await queryClient.invalidateQueries({ queryKey: ["conversations"] });
         }
+
+        // Add user message with attached files
+        await addMessage({
+            conversationId: convoId,
+            whoSaid: "user",
+            message: userMessage,
+            attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
+        });
+
+        // Clear attached files after sending
+        clearFiles();
+
+        // Trigger AI response
+        await sendToAI(convoId, {
+            isNewConversation: isNew,
+            firstUserMessage: isNew ? userMessage : undefined,
+            onTitleGenerated: isNew ? (title) => handleTitleGenerated(title, convoId) : undefined,
+        });
     };
 
     const handleRegenerate = async (messageId: string) => {

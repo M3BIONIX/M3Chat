@@ -1,6 +1,6 @@
-import {ConvexReactClient} from "convex/react";
-import {api} from "@/convex/_generated/api";
-import {AttachedFile} from "@/lib/schemas/FileSchema";
+import { ConvexReactClient } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { AttachedFile } from "@/lib/schemas/FileSchema";
 
 export async function uploadFiles(
     file: File,
@@ -13,7 +13,7 @@ export async function uploadFiles(
 
         const response = await fetch(uploadUrl, {
             method: "POST",
-            headers: {"Content-Type": file.type},
+            headers: { "Content-Type": file.type },
             body: file
         })
 
@@ -21,7 +21,7 @@ export async function uploadFiles(
             throw new Error(`Upload failed: ${response.statusText}`);
         }
 
-        const {storageId} = await response.json();
+        const { storageId } = await response.json();
 
         const fileRecord = await convexClient.mutation(api.files.uploadFiles, {
             storageId,
@@ -34,12 +34,19 @@ export async function uploadFiles(
             throw new Error("Failed to retrieve uploaded file record from database");
         }
 
+        // Get the file URL from storage for PDF extraction
+        const fileUrl = await convexClient.query(api.files.getFileUrl, {
+            storageId: fileRecord.storageId
+        });
+
         return {
-            id: fileRecord.id,
+            _id: fileRecord._id, // Convex document ID
+            id: fileRecord.id,   // Custom UUID
             name: fileRecord.name,
             type: fileRecord.type,
             size: fileRecord.size,
             storageId: fileRecord.storageId,
+            url: fileUrl || undefined,
             uploadedAt: fileRecord.uploadedAt
         };
     }
