@@ -5,6 +5,7 @@ import { FileInput } from "@/app/components/file-input/FileInput";
 import useFileInputHook from "@/hooks/FileInputHooks";
 import { ModelSelector } from "@/app/components/settings/ModelSelector";
 import { useModelsHook } from "@/hooks/ModelsHook";
+import { DEFAULT_MODEL } from "@/lib/mistralConfig";
 
 interface ChatInputProps {
     handleSend?: (message: string, attachedFileIds?: string[]) => void;
@@ -58,9 +59,9 @@ export const ChatInput = ({ handleSend, selectedModel, onModelChange }: ChatInpu
             <div className="flex items-center justify-between mt-2">
                 <div className="flex items-center gap-2">
                     <FileInput />
-                    {selectedModel && onModelChange && (
+                    {onModelChange && (
                         <ModelSelector
-                            selectedModel={selectedModel}
+                            selectedModel={selectedModel || DEFAULT_MODEL}
                             onModelChange={onModelChange}
                             models={models}
                             isLoading={isLoadingModels}
