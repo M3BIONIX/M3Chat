@@ -1,9 +1,44 @@
 'use client';
 import Image from "next/image"
-import { ArrowUp, Paperclip, Wand2 } from "lucide-react"
+import { MessageSquare } from "lucide-react"
 import { ChatInput } from "@/app/components/chat-input/ChatInput"
+import { useUserHook } from "@/hooks/UserHook"
+import { useRouter } from "next/navigation"
+import { useConvex } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export function Hero() {
+  const { user: userQuery } = useUserHook();
+  const userData = userQuery.data;
+  const router = useRouter();
+  const convex = useConvex();
+
+  const handleSend = async (message: string) => {
+    if (!message.trim()) return;
+
+    if (userData?.id) {
+      // User is logged in - create conversation and redirect
+      try {
+        const { _id, publicId } = await convex.mutation(api.conversations.createConversation, {
+          userId: userData.id,
+        });
+
+        // Store the initial message to be sent after redirect
+        sessionStorage.setItem('pending_chat_message', message);
+        sessionStorage.setItem('pending_chat_convo_id', _id);
+
+        // Redirect to the new chat
+        router.push(`/chat/${publicId}`);
+      } catch (error) {
+        console.error("Failed to create conversation:", error);
+      }
+    } else {
+      // User is not logged in - store message and redirect to login
+      sessionStorage.setItem('pending_chat_message', message);
+      router.push('/auth');
+    }
+  };
+
   return (
     <section className="relative pt-32 overflow-hidden">
       {/* Background Effects */}
@@ -12,20 +47,20 @@ export function Hero() {
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-6">
-            <Wand2 className="w-4 h-4 text-cyan-400" />
-            <span className="text-sm text-gray-300">Talk to M3Chat. Create Anything.</span>
+            <MessageSquare className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm text-gray-300">Talk to M3Chat. Get answers instantly.</span>
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
-            Your Creative Partner <br />
+            Your AI Assistant <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-400 to-cyan-600">
-              Powered by Conversation.
+              Powered by Mistral AI.
             </span>
           </h1>
 
           <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10">
-            From dynamic video generation to intelligent chat, our AI-powered suite helps you create compelling content
-            and conversations. Your all-in-one solution for modern creation.
+            Intelligent conversations with file context. Upload documents, ask questions,
+            and get accurate answers powered by advanced AI models.
           </p>
         </div>
 
@@ -33,7 +68,7 @@ export function Hero() {
         <div className="relative max-w-5xl mx-auto min-h-[400px] md:min-h-[400px]">
           {/* Main Chat/Input Interface */}
           <div className="z-50 relative">
-            <ChatInput />
+            <ChatInput handleSend={handleSend} />
           </div>
 
           {/* Floating Elements */}

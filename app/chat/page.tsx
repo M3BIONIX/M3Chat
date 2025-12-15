@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { ChatInput } from "@/app/components/chat-input/ChatInput";
 import { useUserHook } from "@/hooks/UserHook";
 import useCurrentChatHook from "@/hooks/CurrentChatHooks";
@@ -16,6 +16,7 @@ import { useConversationsHook } from "@/hooks/ConversationsHook";
 import { useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { processSuggestionAction, processSendAction } from "@/lib/utils/chatHelpers";
+import { waitForEmbeddings } from "@/lib/utils/embeddingUtils";
 
 const suggestions = [
     {
@@ -90,6 +91,50 @@ export default function NewChat() {
         }
     }, [convex, queryClient]);
 
+    // Check for pending message from welcome screen (after login redirect)
+    useEffect(() => {
+        const processPendingMessage = async () => {
+            const pendingMessage = sessionStorage.getItem('pending_chat_message');
+            if (!pendingMessage || !userData?.id) return;
+
+            // Clear immediately to prevent re-processing
+            sessionStorage.removeItem('pending_chat_message');
+            sessionStorage.removeItem('pending_chat_convo_id');
+
+            // Create a new conversation and send the message
+            try {
+                const { convoId, publicId } = await processSuggestionAction(
+                    convex,
+                    userData.id,
+                    [], // No attached files from welcome screen
+                    createConversation
+                );
+
+                setActiveConvoId(convoId);
+                setActivePublicId(publicId);
+                setShowMessages(true);
+                window.history.replaceState(null, '', `/chat/${publicId}`);
+                await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
+                await addMessage({
+                    conversationId: convoId,
+                    whoSaid: "user",
+                    message: pendingMessage,
+                });
+
+                await sendToAI(convoId, {
+                    isNewConversation: true,
+                    firstUserMessage: pendingMessage,
+                    onTitleGenerated: (title) => handleTitleGenerated(title, convoId),
+                });
+            } catch (error) {
+                console.error("Failed to process pending message:", error);
+            }
+        };
+
+        processPendingMessage();
+    }, [userData?.id, convex, createConversation, addMessage, sendToAI, queryClient, handleTitleGenerated]);
+
     const handleSuggestionClick = async (suggestion: string) => {
         if (!userData?.id) return;
 
@@ -122,6 +167,11 @@ export default function NewChat() {
 
         // Clear attached files after sending
         clearFiles();
+
+        // Wait for embeddings to complete before calling AI
+        if (fileIds.length > 0) {
+            await waitForEmbeddings(convex, fileIds.map(id => String(id)));
+        }
 
         // Trigger AI response with title generation (runs in parallel on server)
         await sendToAI(convoId, {
@@ -162,6 +212,11 @@ export default function NewChat() {
 
         // Clear attached files after sending
         clearFiles();
+
+        // Wait for embeddings to complete before calling AI
+        if (fileIds.length > 0) {
+            await waitForEmbeddings(convex, fileIds.map(id => String(id)));
+        }
 
         // Trigger AI response
         await sendToAI(convoId, {

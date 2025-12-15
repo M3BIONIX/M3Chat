@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as conversationUtils from "../conversationUtils.js";
 import type * as conversations from "../conversations.js";
 import type * as fileEmbeddings from "../fileEmbeddings.js";
 import type * as fileMetadata from "../fileMetadata.js";
@@ -23,6 +24,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  conversationUtils: typeof conversationUtils;
   conversations: typeof conversations;
   fileEmbeddings: typeof fileEmbeddings;
   fileMetadata: typeof fileMetadata;

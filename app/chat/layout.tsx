@@ -20,7 +20,7 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
     // Get user and conversations
     const { user: userQuery } = useUserHook();
     const userId = userQuery.data?.id;
-    const { conversations } = useConversationsHook(userId);
+    const { conversations, deleteConversation } = useConversationsHook(userId);
 
     // Extract current chat ID from URL pathname
     const currentChatId = useMemo(() => {
@@ -59,6 +59,23 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
     const handleOpenSettings = useCallback(() => {
         setIsSettingsOpen(true);
     }, []);
+
+    // Handle delete chat
+    const handleDeleteChat = useCallback(async (chatId: string) => {
+        try {
+            // Find the Convex _id from the public id
+            const conv = conversations.data?.find(c => c.id === chatId);
+            if (conv) {
+                await deleteConversation(conv._id);
+                // If we just deleted the current chat, navigate to /chat
+                if (currentChatId === chatId) {
+                    router.push('/chat');
+                }
+            }
+        } catch (error) {
+            console.error("Failed to delete conversation:", error);
+        }
+    }, [conversations.data, deleteConversation, currentChatId, router]);
 
     const handleCloseSettings = useCallback(() => {
         setIsSettingsOpen(false);
@@ -102,7 +119,7 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
                 currentChatId={currentChatId}
                 onSelectChat={handleSelectChat}
                 onNewChat={handleNewChat}
-                onDeleteChat={() => { }}
+                onDeleteChat={handleDeleteChat}
                 isOpen={sidebarOpen}
                 onToggle={handleToggle}
                 onNavigateToProfile={() => { }}

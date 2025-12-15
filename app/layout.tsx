@@ -18,6 +18,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "M3Chat",
   description: "An Interactive Chat App to use Mistral Models",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/m3-logo.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/m3-logo.png" },
+    ],
+  },
 };
 
 export default function RootLayout({

@@ -227,6 +227,28 @@ export const getFileStatus = query({
 });
 
 /**
+ * Get statuses for multiple files (for batch checking)
+ */
+export const getFilesStatus = query({
+    args: {
+        fileIds: v.array(v.id("attachedFiles")),
+    },
+    handler: async (ctx, args) => {
+        const results = await Promise.all(
+            args.fileIds.map(async (fileId) => {
+                const file = await ctx.db.get(fileId);
+                return file ? {
+                    fileId: fileId,
+                    status: file.status || "pending",
+                    name: file.name
+                } : null;
+            })
+        );
+        return results.filter(Boolean);
+    },
+});
+
+/**
  * Internal action: Process file and create embeddings
  * Called by WorkPool in the background
  */
@@ -421,4 +443,24 @@ export const searchRelevantChunks = action({
             };
         }).filter((c): c is NonNullable<typeof c> => c !== null);
     },
+});
+
+/**
+ * Delete all file chunks/embeddings associated with a conversation
+ */
+export const deleteChunksByConversationId = mutation({
+    args: {
+        conversationId: v.id("conversations")
+    },
+    handler: async (ctx, args) => {
+        const chunks = await ctx.db.query("fileChunks")
+            .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+            .collect();
+
+        for (const chunk of chunks) {
+            await ctx.db.delete(chunk._id);
+        }
+
+        return { success: true, deletedCount: chunks.length };
+    }
 });

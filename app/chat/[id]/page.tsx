@@ -1,6 +1,6 @@
 'use client';
 
-import React, { use, useMemo } from "react";
+import React, { use, useMemo, useEffect, useState } from "react";
 import { ChatInput } from "@/app/components/chat-input/ChatInput";
 import { useUserHook } from "@/hooks/UserHook";
 import { Message } from "@/app/components/messages/messages";
@@ -11,6 +11,8 @@ import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useSettingsHook } from "@/hooks/SettingsHook";
 import { DEFAULT_MODEL } from "@/lib/mistralConfig";
+import useFileInputHook from "@/hooks/FileInputHooks";
+import { waitForEmbeddings } from "@/lib/utils/embeddingUtils";
 
 interface ChatPageProps {
     params: Promise<{ id: string }>;
@@ -25,6 +27,9 @@ export default function ChatPage({ params }: ChatPageProps) {
     // Get user settings for model selection
     const { settings, updateSettings } = useSettingsHook(userData?.id);
     const selectedModel = settings.data?.selectedModel || DEFAULT_MODEL;
+
+    // Get attached files from hook
+    const { files: attachedFiles, clearFiles } = useFileInputHook();
 
     const handleModelChange = async (modelId: string) => {
         await updateSettings({
@@ -50,13 +55,61 @@ export default function ChatPage({ params }: ChatPageProps) {
 
     const { addMessage, deleteMessage, sendToAI, streamingMessage, isStreaming, messages } = useMessageHook(convoId, userData?.id);
 
-    const handleSendClick = async (userMessage: string) => {
+    // Track if we've processed the pending message
+    const [pendingProcessed, setPendingProcessed] = useState(false);
+
+    // Check for pending message from welcome screen (after redirect)
+    useEffect(() => {
+        const processPendingMessage = async () => {
+            if (pendingProcessed || !convoId || !userData?.id) return;
+
+            const pendingMessage = sessionStorage.getItem('pending_chat_message');
+            if (!pendingMessage) return;
+
+            // Clear immediately to prevent re-processing
+            sessionStorage.removeItem('pending_chat_message');
+            sessionStorage.removeItem('pending_chat_convo_id');
+            setPendingProcessed(true);
+
+            // Send the pending message
+            try {
+                await addMessage({
+                    conversationId: convoId,
+                    whoSaid: "user",
+                    message: pendingMessage,
+                });
+
+                await sendToAI(convoId);
+            } catch (error) {
+                console.error("Failed to process pending message:", error);
+            }
+        };
+
+        processPendingMessage();
+    }, [convoId, userData?.id, addMessage, sendToAI, pendingProcessed]);
+
+    const handleSendClick = async (userMessage: string, attachedFileIds?: string[]) => {
         if (userData?.id && convoId) {
+            // Use the file IDs passed from ChatInput (which are the _id strings)
+            const fileIdsToSend = attachedFileIds && attachedFileIds.length > 0
+                ? attachedFileIds
+                : undefined;
+
             await addMessage({
                 conversationId: convoId,
                 whoSaid: "user",
                 message: userMessage,
+                attachedFileIds: fileIdsToSend,
             });
+
+            // Clear attached files after sending
+            clearFiles();
+
+            // Wait for embeddings to complete before calling AI
+            if (fileIdsToSend && fileIdsToSend.length > 0) {
+                await waitForEmbeddings(convex, fileIdsToSend);
+            }
+
             await sendToAI(convoId);
         }
     };
