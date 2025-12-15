@@ -1,3 +1,10 @@
+export const AVAILABLE_MODELS = [
+    { id: "mistral-small-latest", name: "Mistral Small", description: "Fast, cost-effective for simple tasks" },
+    { id: "mistral-medium-latest", name: "Mistral Medium", description: "Balanced performance" },
+    { id: "mistral-large-latest", name: "Mistral Large", description: "Most capable, best for complex tasks" },
+    { id: "codestral-latest", name: "Codestral", description: "Optimized for code generation" },
+];
+
 export const DEFAULT_MODEL = "mistral-large-latest";
 
 export const DEFAULT_SYSTEM_PROMPT = `You are M3Chat, an advanced AI assistant designed to help users with coding, writing, analysis, research, problem-solving, creative projects, and general conversation.

@@ -12,7 +12,7 @@ export interface SendToAIOptions {
     onTitleGenerated?: (title: string) => void;
 }
 
-export const useMessageHook = (convoId?: Id<"conversations">) => {
+export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) => {
     const messageHookKey = ["messages", convoId];
     const queryClient = useQueryClient();
     const convex = useConvex();
@@ -38,6 +38,7 @@ export const useMessageHook = (convoId?: Id<"conversations">) => {
                 whoSaid: req.whoSaid,
                 message: req.message,
                 model: req.model,
+                attachedFileIds: req.attachedFileIds as any,
             });
         },
         onSuccess: async () => {
@@ -100,7 +101,7 @@ export const useMessageHook = (convoId?: Id<"conversations">) => {
                 const response = await fetch("/api/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ convoId: conversationId }),
+                    body: JSON.stringify({ convoId: conversationId, userId }),
                 });
 
                 if (!response.ok) {

@@ -1,10 +1,11 @@
 import * as z from 'zod';
 
 const attachedFileSchema = z.object({
-    id: z.string(),
+    _id: z.string(), // Convex document ID
+    id: z.string(),  // Custom UUID
     name: z.string(),
     type: z.string(),
-    size: z.number().positive().max(100*1024*1024),
+    size: z.number().positive().max(100 * 1024 * 1024),
     storageId: z.string(),
     url: z.string().optional(),
     uploadedAt: z.number().optional(),

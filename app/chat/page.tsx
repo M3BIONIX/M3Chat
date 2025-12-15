@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { ChatInput } from "@/app/components/chat-input/ChatInput";
 import { useUserHook } from "@/hooks/UserHook";
 import useCurrentChatHook from "@/hooks/CurrentChatHooks";
@@ -10,9 +9,13 @@ import { UserSchema } from "@/lib/schemas/AuthSchema";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMessageHook } from "@/hooks/MessageHooks";
 import { M3Logo } from "@/app/components/branding/M3Logo";
-import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useSettingsHook } from "@/hooks/SettingsHook";
+import useFileInputHook from "@/hooks/FileInputHooks";
+import { useConversationsHook } from "@/hooks/ConversationsHook";
+import { useConvex } from "convex/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { processSuggestionAction, processSendAction } from "@/lib/utils/chatHelpers";
 
 const suggestions = [
     {
@@ -58,17 +61,20 @@ const WelcomeScreen = ({ user, onSuggestionClick }: { user: UserSchema | undefin
 
 
 export default function NewChat() {
-    const router = useRouter();
-    const convex = useConvex();
-    const queryClient = useQueryClient();
     const { user: userQuery } = useUserHook();
     const userData = userQuery.data;
+    const convex = useConvex();
+    const queryClient = useQueryClient();
+
+    const { settings, updateSettings } = useSettingsHook(userData?.id);
+    const { files: attachedFiles, clearFiles } = useFileInputHook();
+    const { clearConversations } = useConversationsHook(userData?.id);
 
     const [activeConvoId, setActiveConvoId] = useState<Id<"conversations"> | undefined>();
     const [activePublicId, setActivePublicId] = useState<string | undefined>();
     const { createConversation } = useCurrentChatHook();
     const [showMessages, setShowMessages] = useState<boolean>(false);
-    const { addMessage, sendToAI, streamingMessage, isStreaming, deleteMessage } = useMessageHook(activeConvoId);
+    const { addMessage, sendToAI, streamingMessage, isStreaming, deleteMessage } = useMessageHook(activeConvoId, userData?.id);
 
     // Handle title update from AI
     const handleTitleGenerated = useCallback(async (title: string, convoId: Id<"conversations">) => {
@@ -85,73 +91,84 @@ export default function NewChat() {
     }, [convex, queryClient]);
 
     const handleSuggestionClick = async (suggestion: string) => {
-        if (userData?.id) {
-            const { _id: convoId, publicId } = await createConversation(userData.id);
+        if (!userData?.id) return;
+
+        // Use helper to create conversation and link files
+        const { convoId, publicId, fileIds } = await processSuggestionAction(
+            convex,
+            userData.id,
+            attachedFiles,
+            createConversation
+        );
+
+        // Update state
+        setActiveConvoId(convoId);
+        setActivePublicId(publicId);
+        setShowMessages(true);
+
+        // Update URL without navigation (prevents refresh)
+        window.history.replaceState(null, '', `/chat/${publicId}`);
+
+        // Invalidate to show new conversation in sidebar
+        await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
+        // Add user message with attached files
+        await addMessage({
+            conversationId: convoId,
+            whoSaid: "user",
+            message: suggestion,
+            attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
+        });
+
+        // Clear attached files after sending
+        clearFiles();
+
+        // Trigger AI response with title generation (runs in parallel on server)
+        await sendToAI(convoId, {
+            isNewConversation: true,
+            firstUserMessage: suggestion,
+            onTitleGenerated: (title) => handleTitleGenerated(title, convoId),
+        });
+    };
+
+    const handleSendClick = async (userMessage: string, attachedFileIds?: string[]) => {
+        if (!userData?.id) return;
+
+        // Use helper to create conversation if needed and link files
+        const { convoId, publicId, fileIds, isNew } = await processSendAction(
+            convex,
+            userData.id,
+            attachedFiles,
+            showMessages ? activeConvoId : undefined,
+            createConversation
+        );
+
+        // Update state if new conversation
+        if (isNew) {
             setActiveConvoId(convoId);
             setActivePublicId(publicId);
             setShowMessages(true);
-
-            // Update URL without navigation (prevents refresh)
             window.history.replaceState(null, '', `/chat/${publicId}`);
-
-            // Invalidate to show new conversation in sidebar
             await queryClient.invalidateQueries({ queryKey: ["conversations"] });
-
-            await addMessage({
-                conversationId: convoId,
-                whoSaid: "user",
-                message: suggestion,
-            });
-
-            // Trigger AI response with title generation (runs in parallel on server)
-            await sendToAI(convoId, {
-                isNewConversation: true,
-                firstUserMessage: suggestion,
-                onTitleGenerated: (title) => handleTitleGenerated(title, convoId),
-            });
         }
-    };
 
-    const handleSendClick = async (userMessage: string) => {
-        if (userData?.id) {
-            let convoId = activeConvoId;
-            let publicId = activePublicId;
-            let isNew = false;
+        // Add user message with attached files
+        await addMessage({
+            conversationId: convoId,
+            whoSaid: "user",
+            message: userMessage,
+            attachedFileIds: fileIds.length > 0 ? fileIds.map(id => String(id)) : undefined,
+        });
 
-            if (!showMessages) {
-                const result = await createConversation(userData.id);
-                convoId = result._id;
-                publicId = result.publicId;
-                setActiveConvoId(convoId);
-                setActivePublicId(publicId);
-                setShowMessages(true);
-                isNew = true;
+        // Clear attached files after sending
+        clearFiles();
 
-                // Update URL without navigation (prevents refresh)
-                window.history.replaceState(null, '', `/chat/${publicId}`);
-
-                // Invalidate to show new conversation in sidebar
-                await queryClient.invalidateQueries({ queryKey: ["conversations"] });
-            }
-
-            if (convoId) {
-                // If it's a new conversation, we add the message and start AI
-                if (isNew || !isNew) {
-                    await addMessage({
-                        conversationId: convoId,
-                        whoSaid: "user",
-                        message: userMessage,
-                    });
-                }
-
-                // Trigger AI response (title generation runs in parallel on server for new convos)
-                await sendToAI(convoId, isNew ? {
-                    isNewConversation: true,
-                    firstUserMessage: userMessage,
-                    onTitleGenerated: (title) => handleTitleGenerated(title, convoId!),
-                } : undefined);
-            }
-        }
+        // Trigger AI response
+        await sendToAI(convoId, {
+            isNewConversation: isNew,
+            firstUserMessage: isNew ? userMessage : undefined,
+            onTitleGenerated: isNew ? (title) => handleTitleGenerated(title, convoId) : undefined,
+        });
     };
 
     const handleRegenerate = async (messageId: string) => {
@@ -193,7 +210,14 @@ export default function NewChat() {
 
                 {/* Input Area - Fixed at bottom of the centered container */}
                 <div className="flex-shrink-0 w-full p-4 pb-6">
-                    <ChatInput handleSend={handleSendClick} />
+                    <ChatInput
+                        handleSend={handleSendClick}
+                        selectedModel={settings.data?.selectedModel}
+                        onModelChange={(modelId) => updateSettings({
+                            selectedModel: modelId,
+                            customPersonality: settings.data?.customPersonality
+                        })}
+                    />
                     <div className="text-center mt-2">
                         <p className="text-[10px] text-gray-500">M3 Chat can make mistakes. Check important info.</p>
                     </div>

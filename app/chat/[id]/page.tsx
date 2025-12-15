@@ -9,6 +9,8 @@ import { useMessageHook } from "@/hooks/MessageHooks";
 import { useQuery } from "@tanstack/react-query";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useSettingsHook } from "@/hooks/SettingsHook";
+import { DEFAULT_MODEL } from "@/lib/mistralConfig";
 
 interface ChatPageProps {
     params: Promise<{ id: string }>;
@@ -19,6 +21,17 @@ export default function ChatPage({ params }: ChatPageProps) {
     const convex = useConvex();
     const { user: userQuery } = useUserHook();
     const userData = userQuery.data;
+
+    // Get user settings for model selection
+    const { settings, updateSettings } = useSettingsHook(userData?.id);
+    const selectedModel = settings.data?.selectedModel || DEFAULT_MODEL;
+
+    const handleModelChange = async (modelId: string) => {
+        await updateSettings({
+            selectedModel: modelId,
+            customPersonality: settings.data?.customPersonality
+        });
+    };
 
     // Resolve public UUID to Convex _id
     const conversationQuery = useQuery({
@@ -35,7 +48,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         return conversationQuery.data?._id as Id<"conversations"> | undefined;
     }, [conversationQuery.data]);
 
-    const { addMessage, deleteMessage, sendToAI, streamingMessage, isStreaming, messages } = useMessageHook(convoId);
+    const { addMessage, deleteMessage, sendToAI, streamingMessage, isStreaming, messages } = useMessageHook(convoId, userData?.id);
 
     const handleSendClick = async (userMessage: string) => {
         if (userData?.id && convoId) {
@@ -95,7 +108,11 @@ export default function ChatPage({ params }: ChatPageProps) {
 
                 {/* Input Area - Fixed at bottom */}
                 <div className="flex-shrink-0 w-full p-4 pb-6">
-                    <ChatInput handleSend={handleSendClick} />
+                    <ChatInput
+                        handleSend={handleSendClick}
+                        selectedModel={selectedModel}
+                        onModelChange={handleModelChange}
+                    />
                     <div className="text-center mt-2">
                         <p className="text-[10px] text-gray-500">M3 Chat can make mistakes. Check important info.</p>
                     </div>

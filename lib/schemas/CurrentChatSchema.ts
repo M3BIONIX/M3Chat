@@ -13,7 +13,8 @@ const createMessageSchema = z.object({
     conversationId: z.string(),
     whoSaid: z.union([z.literal("user"), z.literal("agent")]),
     message: z.string(),
-    model:  z.optional(z.string()),
+    model: z.optional(z.string()),
+    attachedFileIds: z.optional(z.array(z.string())),
 })
 
 export type CreateMessageSchema = z.infer<typeof createMessageSchema>;

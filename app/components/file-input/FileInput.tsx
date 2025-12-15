@@ -30,7 +30,7 @@ export function FileInput() {
         />
         <button
             onClick={() => fileInputRef.current?.click()}
-            className="text-gray-400 flex items-center hover:text-cyan-400 hover:bg-transparent gap-2"
+            className="text-gray-400 text-[12px] flex items-center hover:text-cyan-400 hover:bg-transparent gap-2"
         >
             <Paperclip className="h-4 w-4" />
             Attach file
