@@ -7,8 +7,10 @@ const conversationsTable = "conversations";
 /**
  * Delete a conversation and all its associated data:
  * - All messages
+ * - All message embeddings
  * - All attached files (from storage and database)
  * - All file chunks/embeddings
+ * - Conversation summary
  * - The conversation itself
  */
 export const deleteConversationWithAllData = mutation({
@@ -27,7 +29,25 @@ export const deleteConversationWithAllData = mutation({
             await ctx.db.delete(chunk._id);
         }
 
-        // 2. Delete all attached files (from storage and database)
+        // 2. Delete all message embeddings
+        const messageEmbeddings = await ctx.db.query("messageEmbeddings")
+            .withIndex("by_conversation", (q) => q.eq("conversationId", convoId))
+            .collect();
+
+        for (const embedding of messageEmbeddings) {
+            await ctx.db.delete(embedding._id);
+        }
+
+        // 3. Delete conversation summary if exists
+        const summary = await ctx.db.query("conversationSummaries")
+            .withIndex("by_conversation", (q) => q.eq("conversationId", convoId))
+            .first();
+
+        if (summary) {
+            await ctx.db.delete(summary._id);
+        }
+
+        // 4. Delete all attached files (from storage and database)
         const files = await ctx.db.query("attachedFiles").filter(
             (q) => q.eq(q.field("conversationId"), convoId)
         ).collect();
@@ -37,7 +57,7 @@ export const deleteConversationWithAllData = mutation({
             await ctx.db.delete(file._id);
         }
 
-        // 3. Delete all messages
+        // 5. Delete all messages
         const messages = await ctx.db.query("messages")
             .withIndex("by_conversation", (q) => q.eq("conversationId", convoId))
             .collect();
@@ -46,13 +66,14 @@ export const deleteConversationWithAllData = mutation({
             await ctx.db.delete(message._id);
         }
 
-        // 4. Delete the conversation itself
+        // 6. Delete the conversation itself
         await ctx.db.delete(convoId);
 
         return {
             success: true,
             deleted: {
                 chunks: chunks.length,
+                messageEmbeddings: messageEmbeddings.length,
                 files: files.length,
                 messages: messages.length
             }

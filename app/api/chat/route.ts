@@ -52,42 +52,86 @@ export async function POST(req: Request) {
         }
     }
 
-    // Fetch messages server-side from Convex
-    const messages = await fetchQuery(api.messages.getAllMessagesByConversationId, {
+    // Get the latest user message for context (fetch all for now to get the latest)
+    const allMessages = await fetchQuery(api.messages.getAllMessagesByConversationId, {
         convoId: convoId as Id<"conversations">,
     });
 
-    // Get the latest user message for RAG search
-    const latestUserMessage = messages
+    const latestUserMessage = allMessages
         .filter(m => m.whoSaid === "user")
         .pop();
+
+    if (!latestUserMessage) {
+        return new Response(JSON.stringify({ error: "No user message found" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
+
+    // Get optimized conversation context using message embeddings
+    let conversationContext;
+    try {
+        conversationContext = await fetchAction(api.messageEmbeddings.getConversationContext, {
+            conversationId: convoId as Id<"conversations">,
+            currentQuery: latestUserMessage.message,
+            slidingWindowSize: 10,      // Keep last 10 messages verbatim
+            maxRelevantMessages: 5,     // Retrieve up to 5 relevant older messages
+        });
+    } catch (error) {
+        console.error("Error fetching conversation context, falling back to all messages:", error);
+        // Fallback to old behavior if embeddings not ready
+        conversationContext = {
+            messages: allMessages.map(m => ({
+                messageId: m._id,
+                content: m.message,
+                whoSaid: m.whoSaid,
+                createdAt: m.createdAt,
+                source: "recent" as const,
+            })),
+            summary: null,
+        };
+    }
 
     // Search for relevant file chunks using vector similarity
     let fileContext: string | null = null;
 
-    if (latestUserMessage) {
-        try {
-            const relevantChunks = await fetchAction(api.fileEmbeddings.searchRelevantChunks, {
-                conversationId: convoId as Id<"conversations">,
-                query: latestUserMessage.message
-            });
+    try {
+        const relevantChunks = await fetchAction(api.fileEmbeddings.searchRelevantChunks, {
+            conversationId: convoId as Id<"conversations">,
+            query: latestUserMessage.message
+        });
 
-            if (relevantChunks && relevantChunks.length > 0) {
-                fileContext = relevantChunks
-                    .map((chunk) => `[From ${chunk.fileName}]:\n${chunk.content}`)
-                    .join('\n\n---\n\n');
-            }
-        } catch (error) {
-            console.error("Error searching file chunks:", error);
+        if (relevantChunks && relevantChunks.length > 0) {
+            fileContext = relevantChunks
+                .map((chunk) => `[From ${chunk.fileName}]:\n${chunk.content}`)
+                .join('\n\n---\n\n');
         }
+    } catch (error) {
+        console.error("Error searching file chunks:", error);
     }
 
-    // Map messages to Mistral format (simplified - no file content appending)
-    // <--Todo--> Change this to user messages embedding <--Todo-->
-    const mistralMessages = messages.map((m) => ({
-        role: m.whoSaid === "user" ? ("user" as const) : ("assistant" as const),
-        content: m.message,
-    }));
+    // Build Mistral messages from optimized context
+    const mistralMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
+
+    // Add conversation summary if available
+    if (conversationContext.summary) {
+        mistralMessages.push({
+            role: "user",
+            content: `[Previous conversation summary]: ${conversationContext.summary}`,
+        });
+        mistralMessages.push({
+            role: "assistant",
+            content: "I understand the context from our previous conversation. How can I help you further?",
+        });
+    }
+
+    // Add messages from context (relevant older + recent)
+    for (const msg of conversationContext.messages) {
+        mistralMessages.push({
+            role: msg.whoSaid === "user" ? "user" : "assistant",
+            content: msg.content,
+        });
+    }
 
     // Build system prompt with file context
     const systemPrompt = buildSystemPrompt(customPersonality, fileContext);
