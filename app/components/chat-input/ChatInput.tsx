@@ -4,6 +4,7 @@ import FileList from "@/app/components/file-list/FileList";
 import { FileInput } from "@/app/components/file-input/FileInput";
 import useFileInputHook from "@/hooks/FileInputHooks";
 import { ModelSelector } from "@/app/components/settings/ModelSelector";
+import { useModelsHook } from "@/hooks/ModelsHook";
 
 interface ChatInputProps {
     handleSend?: (message: string, attachedFileIds?: string[]) => void;
@@ -15,6 +16,7 @@ export const ChatInput = ({ handleSend, selectedModel, onModelChange }: ChatInpu
     const [input, setInput] = useState('');
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const { files: attachedFiles, clearFiles } = useFileInputHook();
+    const { models, isLoading: isLoadingModels } = useModelsHook();
 
     const adjustHeight = () => {
         const textarea = textareaRef.current;
@@ -60,6 +62,8 @@ export const ChatInput = ({ handleSend, selectedModel, onModelChange }: ChatInpu
                         <ModelSelector
                             selectedModel={selectedModel}
                             onModelChange={onModelChange}
+                            models={models}
+                            isLoading={isLoadingModels}
                         />
                     )}
                 </div>
