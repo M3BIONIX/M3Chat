@@ -1,44 +1,44 @@
 import React from "react"
 import Image from "next/image"
-import { Wand2, Video, ImageIcon, Code, Zap, Layers } from "lucide-react"
+import { MessageSquare, FileText, Search, Cpu, History, Sparkles } from "lucide-react"
 
 export function Features() {
   const features = [
     {
-      icon: Wand2,
-      title: "AI-Powered Video Generation",
-      description: "Create videos directly from natural text prompts with high fidelity.",
+      icon: MessageSquare,
+      title: "AI Chat Assistant",
+      description: "Intelligent conversations powered by Mistral AI with natural language understanding.",
+      image: "/chat-interface-typing-prompt-ai.jpg",
+    },
+    {
+      icon: FileText,
+      title: "File Attachments",
+      description: "Upload PDFs and text files for context-aware AI responses.",
       image: "/abstract-futuristic-ui-network-nodes-white-backgro.jpg",
     },
     {
-      icon: Layers,
-      title: "Brand Style Consistency",
-      description: "Maintain your brand's look and feel across all generated content.",
-      image: "/fashion-model-street-wear-cool.jpg",
+      icon: Search,
+      title: "RAG-Powered Responses",
+      description: "AI uses your uploaded documents to answer questions with relevant context.",
+      image: "/tech-api-connection-network-nodes.jpg",
     },
     {
-      icon: Video,
-      title: "Instant, High-Quality Output",
-      description: "Get studio-grade videos in seconds.",
+      icon: Cpu,
+      title: "Multiple AI Models",
+      description: "Choose from Mistral Small, Medium, Large, or Codestral for your needs.",
       image: "/4k-cinematic-camera-lens-render.jpg",
     },
     {
-      icon: ImageIcon,
-      title: "Image-to-Motion Conversion",
-      description: "Bring static visuals to life with smooth, realistic movement.",
-      image: "/urban-sneakers-product-shot-cool-lighting.jpg",
+      icon: History,
+      title: "Conversation History",
+      description: "All your chats are saved and easily accessible from the sidebar.",
+      image: "/upload-interface-drag-drop-photo.jpg",
     },
     {
-      icon: Code,
-      title: "API Access",
-      description: "Integrated with the best AI models for seamless workflows.",
-      image: "/abstract-futuristic-ui-network-nodes-white-backgro.jpg",
-    },
-    {
-      icon: Zap,
-      title: "Perfect for Creators & Brands",
-      description: "Fashion, retail, marketing — you name it.",
-      image: "/urban-sneakers-product-shot-cool-lighting.jpg",
+      icon: Sparkles,
+      title: "Custom AI Personality",
+      description: "Customize how the AI responds to match your preferences.",
+      image: "/growth-chart-upward-arrow.jpg",
     },
   ]
 

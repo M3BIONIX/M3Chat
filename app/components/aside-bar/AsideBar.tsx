@@ -6,12 +6,14 @@ import {
     Settings,
     User,
     Search,
-    PanelLeftClose
+    PanelLeftClose,
+    Trash2
 } from "lucide-react";
 import { AsideInterface } from "@/app/components/aside-bar/Aside.interface";
 import { M3Logo } from "@/app/components/branding/M3Logo";
 import { TypewriterText } from "@/app/components/typewriter/TypewriterText";
 import { useUserHook } from "@/hooks/UserHook";
+import { useState } from "react";
 
 export function ChatSidebar({
     chats,
@@ -19,6 +21,7 @@ export function ChatSidebar({
     newChatId,
     onSelectChat,
     onNewChat,
+    onDeleteChat,
     isOpen,
     onToggle,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -27,6 +30,7 @@ export function ChatSidebar({
 }: AsideInterface) {
     const { user: userQuery } = useUserHook();
     const userData = userQuery.data;
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
     return (
         <>
@@ -84,9 +88,8 @@ export function ChatSidebar({
                         <div className="space-y-1 pt-2">
                             <div className="px-3 py-1 text-xs font-medium text-gray-500">Recent</div>
                             {chats.map(chat => (
-                                <button
+                                <div
                                     key={chat.id}
-                                    onClick={() => onSelectChat(chat.id)}
                                     className={cn(
                                         'w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm group relative',
                                         currentChatId === chat.id
@@ -94,17 +97,61 @@ export function ChatSidebar({
                                             : 'hover:bg-white/5 text-gray-300'
                                     )}
                                 >
-                                    <span className="truncate flex-1">
-                                        {newChatId === chat.id && chat.title ? (
-                                            <TypewriterText
-                                                text={chat.title}
-                                                speed={30}
-                                            />
-                                        ) : (
-                                            chat.title || "New conversation"
-                                        )}
-                                    </span>
-                                </button>
+                                    {pendingDeleteId === chat.id ? (
+                                        // Confirmation UI
+                                        <div className="flex items-center justify-between w-full gap-2">
+                                            <span className="text-xs text-gray-400 truncate">Delete?</span>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        onDeleteChat(chat.id);
+                                                        setPendingDeleteId(null);
+                                                    }}
+                                                    className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                                                >
+                                                    Yes
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPendingDeleteId(null);
+                                                    }}
+                                                    className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
+                                                >
+                                                    No
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // Normal chat item
+                                        <>
+                                            <button
+                                                onClick={() => onSelectChat(chat.id)}
+                                                className="truncate flex-1 text-left"
+                                            >
+                                                {newChatId === chat.id && chat.title ? (
+                                                    <TypewriterText
+                                                        text={chat.title}
+                                                        speed={30}
+                                                    />
+                                                ) : (
+                                                    chat.title || "New conversation"
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPendingDeleteId(chat.id);
+                                                }}
+                                                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-600/20 text-gray-500 hover:text-red-400 transition-all"
+                                                title="Delete conversation"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     )}

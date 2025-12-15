@@ -1,8 +1,9 @@
 'use client';
 
-import {useQuery, useQueryClient} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 
 export interface Conversation {
     _id: string;
@@ -29,7 +30,14 @@ export const useConversationsHook = (userId?: string) => {
         initialData: [] as Conversation[],
     });
 
-    const clearConversations = async() => {
+    const clearConversations = async () => {
+        await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
+    }
+
+    const deleteConversation = async (conversationId: string) => {
+        await convex.mutation(api.conversationUtils.deleteConversationWithAllData, {
+            conversationId: conversationId as Id<"conversations">
+        });
         await queryClient.invalidateQueries({ queryKey: conversationsQueryKey });
     }
 
@@ -37,6 +45,7 @@ export const useConversationsHook = (userId?: string) => {
         conversations,
         conversationsQueryKey,
         clearConversations,
+        deleteConversation,
         isLoading: conversations.isLoading,
     };
 };

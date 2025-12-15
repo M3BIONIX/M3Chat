@@ -64,3 +64,13 @@ export const getConversationByPublicId = query({
             .first();
     }
 })
+
+export const deleteConversation = mutation({
+    args: {
+        conversationId: v.id(conversationTableName)
+    },
+    handler: async (ctx, args) => {
+        await ctx.db.delete(args.conversationId);
+        return { success: true };
+    }
+})

@@ -157,3 +157,26 @@ export const getFileUrl = query({
         return await ctx.storage.getUrl(args.storageId);
     }
 });
+
+/**
+ * Delete all files associated with a conversation
+ */
+export const deleteFilesByConversationId = mutation({
+    args: {
+        conversationId: v.id(conversationsTable)
+    },
+    handler: async (ctx, args) => {
+        const files = await ctx.db.query(attachedFilesTable).filter(
+            (q) => q.eq(q.field("conversationId"), args.conversationId)
+        ).collect();
+
+        for (const file of files) {
+            // Delete from storage
+            await ctx.storage.delete(file.storageId);
+            // Delete from database
+            await ctx.db.delete(file._id);
+        }
+
+        return { success: true, deletedCount: files.length };
+    }
+});
