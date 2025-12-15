@@ -7,6 +7,7 @@ import { Chat } from "@/app/components/chat-input/Chat.interface";
 import { useConversationsHook } from "@/hooks/ConversationsHook";
 import { useUserHook } from "@/hooks/UserHook";
 import { SettingsModal } from "@/app/components/settings/SettingsModal";
+import { SearchModal } from "@/app/components/search/SearchModal";
 
 export default function ChatLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const router = useRouter();
@@ -16,6 +17,7 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
     const [isOpen, setIsOpen] = useState<boolean | null>(null);
     const [hasMounted, setHasMounted] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     // Get user and conversations
     const { user: userQuery } = useUserHook();
@@ -59,6 +61,22 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
     const handleOpenSettings = useCallback(() => {
         setIsSettingsOpen(true);
     }, []);
+
+    // Handle search modal
+    const handleOpenSearch = useCallback(() => {
+        setIsSearchOpen(true);
+    }, []);
+
+    const handleCloseSearch = useCallback(() => {
+        setIsSearchOpen(false);
+    }, []);
+
+    // Handle search result selection - navigate to conversation and scroll to message
+    const handleSearchResultSelect = useCallback((conversationPublicId: string, messageId: string) => {
+        // Store messageId in sessionStorage for the chat page to scroll to
+        sessionStorage.setItem('scroll_to_message', messageId);
+        router.push(`/chat/${conversationPublicId}`);
+    }, [router]);
 
     // Handle delete chat
     const handleDeleteChat = useCallback(async (chatId: string) => {
@@ -108,6 +126,19 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
         };
     }, [hasMounted]);
 
+    // Keyboard shortcut for search (Cmd/Ctrl + K)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     // Default to closed if not yet determined (for server render)
     const sidebarOpen = isOpen ?? false;
 
@@ -120,6 +151,7 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
                 onSelectChat={handleSelectChat}
                 onNewChat={handleNewChat}
                 onDeleteChat={handleDeleteChat}
+                onSearchClick={handleOpenSearch}
                 isOpen={sidebarOpen}
                 onToggle={handleToggle}
                 onNavigateToProfile={() => { }}
@@ -132,6 +164,16 @@ export default function ChatLayout({ children }: Readonly<{ children: React.Reac
 
             {/* Settings Modal */}
             <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+
+            {/* Search Modal */}
+            <SearchModal
+                isOpen={isSearchOpen}
+                onClose={handleCloseSearch}
+                userId={userId}
+                onSelectResult={handleSearchResultSelect}
+                onNewChat={handleNewChat}
+            />
         </div>
     );
 }
+

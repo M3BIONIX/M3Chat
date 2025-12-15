@@ -416,3 +416,102 @@ export const deleteEmbeddingsByConversationId = mutation({
         return { success: true, deletedCount: embeddings.length };
     },
 });
+
+/**
+ * Global search across all conversations for a user
+ * Returns matching messages with conversation details
+ */
+export const globalSearchMessages = action({
+    args: {
+        userId: v.string(),
+        query: v.string(),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args): Promise<Array<{
+        conversationId: Id<"conversations">;
+        conversationTitle: string;
+        conversationPublicId: string;
+        messageId: Id<"messages">;
+        messageContent: string;
+        whoSaid: "user" | "agent";
+        createdAt: number;
+        score: number;
+    }>> => {
+        const searchLimit = args.limit ?? 10;
+
+        if (!args.query || args.query.trim().length === 0) {
+            return [];
+        }
+
+        // Get query embedding
+        const queryEmbedding = await getEmbedding(args.query);
+
+        // Vector search across all embeddings (no conversation filter)
+        // Note: Convex vector search doesn't support userId filter directly,
+        // so we'll fetch more and filter client-side
+        const results = await ctx.vectorSearch("messageEmbeddings", "by_embedding", {
+            vector: queryEmbedding,
+            limit: searchLimit * 3, // Get extra to filter by user
+        });
+
+        if (results.length === 0) {
+            return [];
+        }
+
+        // Fetch full embedding records
+        const { api } = await import("./_generated/api");
+        const embeddingIds = results.map(r => r._id);
+        const embeddings = await ctx.runQuery(api.messageEmbeddings.getEmbeddingsByIds, {
+            embeddingIds,
+        });
+
+        // Filter by userId and collect unique conversation IDs
+        const userEmbeddings = embeddings.filter(e => e && e.userId === args.userId);
+        const conversationIds = [...new Set(userEmbeddings.map(e => e?.conversationId).filter(Boolean))] as Id<"conversations">[];
+
+        // Fetch conversation details
+        const conversations = await ctx.runQuery(api.messageEmbeddings.getConversationsByIds, {
+            conversationIds,
+        });
+
+        // Build result with conversation details
+        const searchResults = results
+            .map((result) => {
+                const embedding = userEmbeddings.find(e => e && e._id === result._id);
+                if (!embedding) return null;
+
+                const conversation = conversations.find(c => c && c._id === embedding.conversationId);
+                if (!conversation) return null;
+
+                return {
+                    conversationId: embedding.conversationId,
+                    conversationTitle: conversation.title || "New conversation",
+                    conversationPublicId: conversation.id, // Public UUID for navigation
+                    messageId: embedding.messageId,
+                    messageContent: embedding.content,
+                    whoSaid: embedding.whoSaid,
+                    createdAt: embedding.createdAt,
+                    score: result._score,
+                };
+            })
+            .filter((c): c is NonNullable<typeof c> => c !== null)
+            .slice(0, searchLimit);
+
+        return searchResults;
+    },
+});
+
+/**
+ * Get conversations by their IDs (for search results)
+ */
+export const getConversationsByIds = query({
+    args: {
+        conversationIds: v.array(v.id("conversations")),
+    },
+    handler: async (ctx, args) => {
+        const results = await Promise.all(
+            args.conversationIds.map(async (id) => await ctx.db.get(id))
+        );
+        return results.filter(Boolean);
+    },
+});

@@ -58,6 +58,22 @@ export default function ChatPage({ params }: ChatPageProps) {
     // Track if we've processed the pending message
     const [pendingProcessed, setPendingProcessed] = useState(false);
 
+    // Track message to scroll to (from search results)
+    const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null);
+
+    // Check for scroll target from search results
+    useEffect(() => {
+        const targetMessageId = sessionStorage.getItem('scroll_to_message');
+        if (targetMessageId) {
+            sessionStorage.removeItem('scroll_to_message');
+            setScrollToMessageId(targetMessageId);
+        }
+    }, [publicId]);
+
+    const handleScrollComplete = () => {
+        setScrollToMessageId(null);
+    };
+
     // Check for pending message from welcome screen (after redirect)
     useEffect(() => {
         const processPendingMessage = async () => {
@@ -148,19 +164,21 @@ export default function ChatPage({ params }: ChatPageProps) {
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-black">
-            <div className="flex-1 w-full mx-auto flex flex-col relative min-h-0">
-                {/* Scrollable Message Area */}
-                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <div className="flex-1 w-full mx-auto flex flex-col min-h-0 h-full">
+                {/* Scrollable Message Area - with explicit flex constraints */}
+                <div className="flex-1 min-h-0 overflow-hidden">
                     <Message
                         convoId={convoId}
                         streamingMessage={streamingMessage}
                         isStreaming={isStreaming}
                         onRegenerate={handleRegenerate}
+                        scrollToMessageId={scrollToMessageId}
+                        onScrollComplete={handleScrollComplete}
                     />
                 </div>
 
-                {/* Input Area - Fixed at bottom */}
-                <div className="flex-shrink-0 w-full p-4 pb-6">
+                {/* Input Area - Fixed at bottom with flex-shrink-0 to never shrink */}
+                <div className="flex-shrink-0 flex-grow-0 w-full p-4 pb-6">
                     <ChatInput
                         handleSend={handleSendClick}
                         selectedModel={selectedModel}

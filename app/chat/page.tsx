@@ -242,29 +242,25 @@ export default function NewChat() {
 
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-black">
-            {/* Header / Top Bar could go here if needed */}
-
-            <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col relative">
-                {/* Scrollable Content Area */}
-                <div className="flex-1 w-full overflow-hidden flex flex-col">
+            <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col min-h-0 h-full">
+                {/* Scrollable Content Area - with explicit flex constraints */}
+                <div className="flex-1 min-h-0 overflow-hidden">
                     {!showMessages ? (
-                        <div className="flex-1 h-full flex flex-col items-center justify-center p-4 min-h-[500px] overflow-y-auto">
+                        <div className="h-full flex flex-col items-center justify-center p-4 overflow-y-auto">
                             <WelcomeScreen user={userData} onSuggestionClick={handleSuggestionClick} />
                         </div>
                     ) : (
-                        <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
-                            <Message
-                                convoId={activeConvoId}
-                                streamingMessage={streamingMessage}
-                                isStreaming={isStreaming}
-                                onRegenerate={handleRegenerate}
-                            />
-                        </div>
+                        <Message
+                            convoId={activeConvoId}
+                            streamingMessage={streamingMessage}
+                            isStreaming={isStreaming}
+                            onRegenerate={handleRegenerate}
+                        />
                     )}
                 </div>
 
-                {/* Input Area - Fixed at bottom of the centered container */}
-                <div className="flex-shrink-0 w-full p-4 pb-6">
+                {/* Input Area - Fixed at bottom with flex-shrink-0 to never shrink */}
+                <div className="flex-shrink-0 flex-grow-0 w-full p-4 pb-6">
                     <ChatInput
                         handleSend={handleSendClick}
                         selectedModel={settings.data?.selectedModel}

@@ -5,11 +5,60 @@ import { api } from "@/convex/_generated/api";
 import { CreateMessageSchema, Messages } from "@/lib/schemas/CurrentChatSchema";
 import { useCallback, useState } from "react";
 import { DEFAULT_MODEL } from "@/lib/mistralConfig";
+import { toast } from "sonner";
 
 export interface SendToAIOptions {
     isNewConversation?: boolean;
     firstUserMessage?: string;
     onTitleGenerated?: (title: string) => void;
+}
+
+/**
+ * Parse error message and return user-friendly text
+ */
+function parseApiError(error: unknown): { message: string; isTokenLimit: boolean; isRateLimit: boolean } {
+    const errorStr = error instanceof Error ? error.message : String(error);
+
+    // Check for token limit errors
+    if (errorStr.toLowerCase().includes('token') ||
+        errorStr.toLowerCase().includes('context length') ||
+        errorStr.toLowerCase().includes('too long') ||
+        errorStr.toLowerCase().includes('maximum context')) {
+        return {
+            message: "This conversation is too long. Please start a new chat or delete some messages.",
+            isTokenLimit: true,
+            isRateLimit: false,
+        };
+    }
+
+    // Check for rate limit errors
+    if (errorStr.toLowerCase().includes('rate limit') ||
+        errorStr.toLowerCase().includes('too many requests') ||
+        errorStr.includes('429')) {
+        return {
+            message: "Too many requests. Please wait a moment and try again.",
+            isTokenLimit: false,
+            isRateLimit: true,
+        };
+    }
+
+    // Check for API key errors
+    if (errorStr.toLowerCase().includes('api key') ||
+        errorStr.toLowerCase().includes('unauthorized') ||
+        errorStr.includes('401')) {
+        return {
+            message: "API authentication error. Please contact support.",
+            isTokenLimit: false,
+            isRateLimit: false,
+        };
+    }
+
+    // Generic error
+    return {
+        message: errorStr || "Failed to get AI response. Please try again.",
+        isTokenLimit: false,
+        isRateLimit: false,
+    };
 }
 
 export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) => {
@@ -106,7 +155,9 @@ export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) =
                 });
 
                 if (!response.ok) {
-                    throw new Error("Failed to get AI response");
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || `HTTP ${response.status}: Failed to get AI response`;
+                    throw new Error(errorMessage);
                 }
 
                 const reader = response.body?.getReader();
@@ -114,6 +165,7 @@ export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) =
 
                 const decoder = new TextDecoder();
                 let fullMessage = "";
+                let streamError: string | null = null;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -134,13 +186,18 @@ export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) =
                                     setStreamingMessage(fullMessage);
                                 }
                                 if (parsed.error) {
-                                    throw new Error(parsed.error);
+                                    streamError = parsed.error;
                                 }
                             } catch {
                                 // Skip invalid JSON
                             }
                         }
                     }
+                }
+
+                // Check if there was an error during streaming
+                if (streamError) {
+                    throw new Error(streamError);
                 }
 
                 // Save the complete AI response to Convex
@@ -156,12 +213,33 @@ export const useMessageHook = (convoId?: Id<"conversations">, userId?: string) =
                 setStreamingMessage("");
             } catch (error) {
                 console.error("AI streaming error:", error);
-                throw error;
+
+                // Parse the error and show appropriate toast
+                const { message, isTokenLimit, isRateLimit } = parseApiError(error);
+
+                if (isTokenLimit) {
+                    toast.error(message, {
+                        duration: 8000,
+                        description: "Try starting a new conversation or removing old messages.",
+                    });
+                } else if (isRateLimit) {
+                    toast.error(message, {
+                        duration: 5000,
+                        description: "The AI is processing too many requests right now.",
+                    });
+                } else {
+                    toast.error(message, {
+                        duration: 5000,
+                    });
+                }
+
+                // Clear streaming state on error
+                setStreamingMessage("");
             } finally {
                 setIsStreaming(false);
             }
         },
-        [addMessage, generateTitle]
+        [addMessage, generateTitle, userId]
     );
 
     return {

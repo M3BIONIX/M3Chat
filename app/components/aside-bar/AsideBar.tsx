@@ -22,6 +22,7 @@ export function ChatSidebar({
     onSelectChat,
     onNewChat,
     onDeleteChat,
+    onSearchClick,
     isOpen,
     onToggle,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -74,9 +75,13 @@ export function ChatSidebar({
 
                 {/* Secondary Header: Search */}
                 <div className="px-3 py-2">
-                    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-gray-400 group text-left">
+                    <button
+                        onClick={onSearchClick}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-sm text-gray-400 group text-left"
+                    >
                         <Search className="w-4 h-4" />
                         <span>Search chats</span>
+                        <kbd className="ml-auto text-xs text-gray-600 bg-white/5 px-1.5 py-0.5 rounded">⌘K</kbd>
                     </button>
                 </div>
 

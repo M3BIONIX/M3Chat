@@ -7,6 +7,7 @@ export interface AsideInterface {
     onSelectChat: (chatId: string) => void;
     onNewChat: () => void;
     onDeleteChat: (chatId: string) => void;
+    onSearchClick: () => void;
     isOpen: boolean;
     onToggle: () => void;
     onNavigateToProfile: () => void;
