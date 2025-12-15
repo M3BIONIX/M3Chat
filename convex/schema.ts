@@ -52,6 +52,29 @@ export default defineSchema({
         model: v.optional(v.string()),
         attachedFileIds: v.optional(v.array(v.id("attachedFiles")))
     }).index("by_conversation", ["conversationId"]),
+    messageEmbeddings: defineTable({
+        messageId: v.id("messages"),
+        conversationId: v.id("conversations"),
+        userId: v.string(),
+        content: v.string(),           // Original message content
+        embedding: v.array(v.float64()), // Vector embedding
+        whoSaid: v.union(v.literal("user"), v.literal("agent")),
+        createdAt: v.number(),
+    })
+        .vectorIndex("by_embedding", {
+            vectorField: "embedding",
+            dimensions: 1024, // Mistral embed dimensions
+            filterFields: ["conversationId"],
+        })
+        .index("by_conversation", ["conversationId"])
+        .index("by_message", ["messageId"]),
+    conversationSummaries: defineTable({
+        conversationId: v.id("conversations"),
+        userId: v.string(),
+        summary: v.string(),
+        messageCount: v.number(),      // Number of messages summarized
+        lastUpdatedAt: v.number(),
+    }).index("by_conversation", ["conversationId"]),
     userSettings: defineTable({
         userId: v.string(),
         selectedModel: v.optional(v.string()),

@@ -1,5 +1,6 @@
 "use client"
 import Link from "next/link"
+import { M3Logo } from "@/app/components/branding/M3Logo"
 import { ArrowRight } from "lucide-react"
 import { useUserHook } from "@/hooks/UserHook"
 import { useRouter } from "next/navigation"
@@ -37,7 +38,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-400 text-black font-bold">O</div>
+            <M3Logo className="h-8 w-8" />
             <span className="text-lg font-bold tracking-tight text-white">M3Chat</span>
           </Link>
         </div>

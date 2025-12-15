@@ -27,45 +27,75 @@ function buildSystemPrompt(
 }
 
 export async function POST(req: Request) {
-    const { convoId, userId } = await req.json();
+    try {
+        const { convoId, userId } = await req.json();
 
-    if (!convoId) {
-        return new Response(JSON.stringify({ error: "convoId is required" }), {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-        });
-    }
-
-    // Fetch user settings if userId is provided
-    let selectedModel = DEFAULT_MODEL;
-    let customPersonality: string | null = null;
-
-    if (userId) {
-        try {
-            const userSettings = await fetchQuery(api.userSettings.getUserSettings, { userId });
-            if (userSettings) {
-                selectedModel = userSettings.selectedModel || DEFAULT_MODEL;
-                customPersonality = userSettings.customPersonality || null;
-            }
-        } catch (error) {
-            console.error("Failed to fetch user settings:", error);
+        if (!convoId) {
+            return new Response(JSON.stringify({ error: "convoId is required" }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+            });
         }
-    }
 
-    // Fetch messages server-side from Convex
-    const messages = await fetchQuery(api.messages.getAllMessagesByConversationId, {
-        convoId: convoId as Id<"conversations">,
-    });
+        // Fetch user settings if userId is provided
+        let selectedModel = DEFAULT_MODEL;
+        let customPersonality: string | null = null;
 
-    // Get the latest user message for RAG search
-    const latestUserMessage = messages
-        .filter(m => m.whoSaid === "user")
-        .pop();
+        if (userId) {
+            try {
+                const userSettings = await fetchQuery(api.userSettings.getUserSettings, { userId });
+                if (userSettings) {
+                    selectedModel = userSettings.selectedModel || DEFAULT_MODEL;
+                    customPersonality = userSettings.customPersonality || null;
+                }
+            } catch (error) {
+                console.error("Failed to fetch user settings:", error);
+            }
+        }
 
-    // Search for relevant file chunks using vector similarity
-    let fileContext: string | null = null;
+        // Get the latest user message for context (fetch all for now to get the latest)
+        const allMessages = await fetchQuery(api.messages.getAllMessagesByConversationId, {
+            convoId: convoId as Id<"conversations">,
+        });
 
-    if (latestUserMessage) {
+        const latestUserMessage = allMessages
+            .filter(m => m.whoSaid === "user")
+            .pop();
+
+        if (!latestUserMessage) {
+            return new Response(JSON.stringify({ error: "No user message found" }), {
+                status: 400,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        // Get optimized conversation context using message embeddings
+        let conversationContext;
+        try {
+            conversationContext = await fetchAction(api.messageEmbeddings.getConversationContext, {
+                conversationId: convoId as Id<"conversations">,
+                currentQuery: latestUserMessage.message,
+                slidingWindowSize: 10,      // Keep last 10 messages verbatim
+                maxRelevantMessages: 5,     // Retrieve up to 5 relevant older messages
+            });
+        } catch (error) {
+            console.error("Error fetching conversation context, falling back to all messages:", error);
+            // Fallback to old behavior if embeddings not ready
+            conversationContext = {
+                messages: allMessages.map(m => ({
+                    messageId: m._id,
+                    content: m.message,
+                    whoSaid: m.whoSaid,
+                    createdAt: m.createdAt,
+                    source: "recent" as const,
+                })),
+                summary: null,
+            };
+        }
+
+        // Search for relevant file chunks using vector similarity
+        let fileContext: string | null = null;
+
         try {
             const relevantChunks = await fetchAction(api.fileEmbeddings.searchRelevantChunks, {
                 conversationId: convoId as Id<"conversations">,
@@ -80,58 +110,95 @@ export async function POST(req: Request) {
         } catch (error) {
             console.error("Error searching file chunks:", error);
         }
-    }
 
-    // Map messages to Mistral format (simplified - no file content appending)
-    // <--Todo--> Change this to user messages embedding <--Todo-->
-    const mistralMessages = messages.map((m) => ({
-        role: m.whoSaid === "user" ? ("user" as const) : ("assistant" as const),
-        content: m.message,
-    }));
+        // Build Mistral messages from optimized context
+        const mistralMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
 
-    // Build system prompt with file context
-    const systemPrompt = buildSystemPrompt(customPersonality, fileContext);
+        // Add conversation summary if available
+        if (conversationContext.summary) {
+            mistralMessages.push({
+                role: "user",
+                content: `[Previous conversation summary]: ${conversationContext.summary}`,
+            });
+            mistralMessages.push({
+                role: "assistant",
+                content: "I understand the context from our previous conversation. How can I help you further?",
+            });
+        }
 
-    // Stream from Mistral
-    const result = await client.chat.stream({
-        model: selectedModel,
-        messages: [
-            { role: "system", content: systemPrompt },
-            ...mistralMessages,
-        ],
-    });
+        // Add messages from context (relevant older + recent)
+        for (const msg of conversationContext.messages) {
+            mistralMessages.push({
+                role: msg.whoSaid === "user" ? "user" : "assistant",
+                content: msg.content,
+            });
+        }
 
-    // Return as SSE stream
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-        async start(controller) {
-            try {
-                for await (const chunk of result) {
-                    const text = chunk.data.choices[0]?.delta?.content;
-                    if (typeof text === "string") {
-                        controller.enqueue(
-                            encoder.encode(`data: ${JSON.stringify({ text })}\n\n`)
-                        );
+        // Build system prompt with file context
+        const systemPrompt = buildSystemPrompt(customPersonality, fileContext);
+
+        // Stream from Mistral with error handling
+        let result;
+        try {
+            result = await client.chat.stream({
+                model: selectedModel,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    ...mistralMessages,
+                ],
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to connect to AI";
+            console.error("Mistral API error:", error);
+
+            // Return error as JSON response
+            return new Response(JSON.stringify({ error: errorMessage }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+            });
+        }
+
+        // Return as SSE stream
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+            async start(controller) {
+                try {
+                    for await (const chunk of result) {
+                        const text = chunk.data.choices[0]?.delta?.content;
+                        if (typeof text === "string") {
+                            controller.enqueue(
+                                encoder.encode(`data: ${JSON.stringify({ text })}\n\n`)
+                            );
+                        }
                     }
+
+                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                    controller.close();
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : "Stream error";
+                    console.error("Stream error:", error);
+                    controller.enqueue(
+                        encoder.encode(`data: ${JSON.stringify({ error: errorMessage })}\n\n`)
+                    );
+                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                    controller.close();
                 }
+            },
+        });
 
-                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-                controller.close();
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : "Stream error";
-                controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify({ error: errorMessage })}\n\n`)
-                );
-                controller.close();
-            }
-        },
-    });
-
-    return new Response(stream, {
-        headers: {
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-        },
-    });
+        return new Response(stream, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+            },
+        });
+    } catch (error) {
+        console.error("Chat API error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Internal server error";
+        return new Response(JSON.stringify({ error: errorMessage }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+        });
+    }
 }

@@ -2,6 +2,7 @@ import { mutation, query } from "@/convex/_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { fileEmbeddingPool } from "./fileEmbeddings";
+import { messageEmbeddingPool } from "./messageEmbeddings";
 
 const conversationsTable = "conversations";
 const messagesTable = "messages";
@@ -27,7 +28,7 @@ export const createMessage = mutation({
                     status: "queued"
                 });
 
-                // Trigger embedding via WorkPool
+                // Trigger file embedding via WorkPool
                 await fileEmbeddingPool.enqueueAction(
                     ctx,
                     internal.fileEmbeddings.processFileEmbeddingsInternal,
@@ -40,7 +41,8 @@ export const createMessage = mutation({
             }
         }
 
-        return await ctx.db.insert(messagesTable, {
+        // Insert the message
+        const messageId = await ctx.db.insert(messagesTable, {
             id,
             conversationId: args.conversationId,
             whoSaid: args.whoSaid,
@@ -49,6 +51,24 @@ export const createMessage = mutation({
             model: args.model,
             attachedFileIds: args.attachedFileIds,
         });
+
+        // Queue message embedding generation (if userId provided)
+        if (args.userId && args.message && args.message.trim().length > 0) {
+            await messageEmbeddingPool.enqueueAction(
+                ctx,
+                internal.messageEmbeddings.processMessageEmbeddingInternal,
+                {
+                    messageId,
+                    conversationId: args.conversationId,
+                    userId: args.userId,
+                    content: args.message,
+                    whoSaid: args.whoSaid,
+                    createdAt: epochNumber,
+                }
+            );
+        }
+
+        return messageId;
     },
 });
 

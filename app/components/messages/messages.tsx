@@ -13,15 +13,19 @@ interface MessageProps {
     streamingMessage?: string;
     isStreaming?: boolean;
     onRegenerate?: (message: string) => void;
+    scrollToMessageId?: string | null;
+    onScrollComplete?: () => void;
 }
 
-export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }: MessageProps) => {
+export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate, scrollToMessageId, onScrollComplete }: MessageProps) => {
     const { messages, isLoading } = useMessageHook(convoId);
     const convex = useConvex();
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const wasAtBottomRef = useRef(true);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [messageFiles, setMessageFiles] = useState<Record<string, any[]>>({});
+    const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+    const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
     // Check if user is at bottom of scroll
     const isAtBottom = useCallback(() => {
@@ -58,6 +62,28 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
             scrollToBottom();
         }
     }, [isStreaming, scrollToBottom, streamingMessage]);
+
+    // Scroll to specific message when scrollToMessageId changes
+    useEffect(() => {
+        if (scrollToMessageId && messages.data && messages.data.length > 0) {
+            // Wait for DOM to update
+            setTimeout(() => {
+                const messageElement = messageRefs.current.get(scrollToMessageId);
+                if (messageElement) {
+                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setHighlightedMessageId(scrollToMessageId);
+
+                    // Remove highlight after animation
+                    setTimeout(() => {
+                        setHighlightedMessageId(null);
+                        onScrollComplete?.();
+                    }, 2000);
+                } else {
+                    onScrollComplete?.();
+                }
+            }, 100);
+        }
+    }, [scrollToMessageId, messages.data, onScrollComplete]);
 
     const handleCopy = async (text: string, id: string) => {
         await navigator.clipboard.writeText(text);
@@ -129,14 +155,20 @@ export const Message = ({ convoId, streamingMessage, isStreaming, onRegenerate }
     return (
         <div
             ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar pt-10 px-4 space-y-6 min-h-0"
+            className="h-full overflow-y-auto overflow-x-hidden no-scrollbar pt-10 px-4 space-y-6"
         >
             {allMessages.map((message, index) => {
                 const isUser = message.whoSaid === "user";
+                const isHighlighted = highlightedMessageId === message.id;
                 return (
                     <div
                         key={`${message.id}-${index}`}
-                        className={`flex w-full group ${isUser ? "justify-end" : "justify-start"}`}
+                        ref={(el) => {
+                            if (el) {
+                                messageRefs.current.set(message.id, el);
+                            }
+                        }}
+                        className={`flex w-full group transition-all duration-500 ${isUser ? "justify-end" : "justify-start"} ${isHighlighted ? "ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-black rounded-2xl" : ""}`}
                     >
                         <div className={`flex flex-col max-w-[85%] md:max-w-[80%] gap-4 min-w-0 ${isUser ? "items-end" : "items-start"}`}>
                             <div className={`flex gap-4 min-w-0 ${isUser ? "flex-row-reverse" : "flex-row"}`}>

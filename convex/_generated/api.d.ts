@@ -13,6 +13,7 @@ import type * as conversations from "../conversations.js";
 import type * as fileEmbeddings from "../fileEmbeddings.js";
 import type * as fileMetadata from "../fileMetadata.js";
 import type * as files from "../files.js";
+import type * as messageEmbeddings from "../messageEmbeddings.js";
 import type * as messages from "../messages.js";
 import type * as profileImage from "../profileImage.js";
 import type * as userSettings from "../userSettings.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   fileEmbeddings: typeof fileEmbeddings;
   fileMetadata: typeof fileMetadata;
   files: typeof files;
+  messageEmbeddings: typeof messageEmbeddings;
   messages: typeof messages;
   profileImage: typeof profileImage;
   userSettings: typeof userSettings;
@@ -62,6 +64,93 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   fileEmbedding: {
+    lib: {
+      cancel: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          id: string;
+          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+        },
+        any
+      >;
+      cancelAll: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          before?: number;
+          limit?: number;
+          logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+        },
+        any
+      >;
+      enqueue: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          config: {
+            logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism: number;
+          };
+          fnArgs: any;
+          fnHandle: string;
+          fnName: string;
+          fnType: "action" | "mutation" | "query";
+          onComplete?: { context?: any; fnHandle: string };
+          retryBehavior?: {
+            base: number;
+            initialBackoffMs: number;
+            maxAttempts: number;
+          };
+          runAt: number;
+        },
+        string
+      >;
+      enqueueBatch: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          config: {
+            logLevel: "DEBUG" | "TRACE" | "INFO" | "REPORT" | "WARN" | "ERROR";
+            maxParallelism: number;
+          };
+          items: Array<{
+            fnArgs: any;
+            fnHandle: string;
+            fnName: string;
+            fnType: "action" | "mutation" | "query";
+            onComplete?: { context?: any; fnHandle: string };
+            retryBehavior?: {
+              base: number;
+              initialBackoffMs: number;
+              maxAttempts: number;
+            };
+            runAt: number;
+          }>;
+        },
+        Array<string>
+      >;
+      status: FunctionReference<
+        "query",
+        "internal",
+        { id: string },
+        | { previousAttempts: number; state: "pending" }
+        | { previousAttempts: number; state: "running" }
+        | { state: "finished" }
+      >;
+      statusBatch: FunctionReference<
+        "query",
+        "internal",
+        { ids: Array<string> },
+        Array<
+          | { previousAttempts: number; state: "pending" }
+          | { previousAttempts: number; state: "running" }
+          | { state: "finished" }
+        >
+      >;
+    };
+  };
+  messageEmbedding: {
     lib: {
       cancel: FunctionReference<
         "mutation",
